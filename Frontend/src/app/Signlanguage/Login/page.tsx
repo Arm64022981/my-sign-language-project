@@ -40,12 +40,12 @@ export default function Login() {
       const data: LoginResponse = await response.json();
 
       if (response.ok && data.access_token) {
-  localStorage.setItem("token", data.access_token);
-  // แปลง user_type เป็น string ก่อนเก็บลง localStorage
-  localStorage.setItem("user_type", data.user_type?.toString() || "");
+        localStorage.setItem("token", data.access_token);
+        // แปลง user_type เป็น string ก่อนเก็บลง localStorage
+        localStorage.setItem("user_type", data.user_type?.toString() || "");
 
-  router.push("/Signlanguage/Homepage");
-} else {
+        router.push("/Signlanguage/Homepage");
+      } else {
         setError(data.message || "เข้าสู่ระบบไม่สำเร็จ");
       }
     } catch (err) {

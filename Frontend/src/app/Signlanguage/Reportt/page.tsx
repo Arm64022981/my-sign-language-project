@@ -1,37 +1,81 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Input } from '@/app/components/ui/input';
+import { Button } from '@/app/components/ui/button';
+import Swal from 'sweetalert2';
+
+// Textarea Component
+const Textarea = ({ className = '', ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
+  <textarea
+    className={`w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-inner text-gray-800 text-sm placeholder-gray-400 ${className}`}
+    {...props}
+  />
+);
+
+// Select Component
+const Select = ({ className = '', children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) => (
+  <select
+    className={`w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white shadow-inner text-gray-800 text-sm ${className}`}
+    {...props}
+  >
+    {children}
+  </select>
+);
 
 const ReportIssuePage = () => {
+  const router = useRouter();
   const [report, setReport] = useState({
-    name: "",
-    role: "หมอ", // ค่าเริ่มต้นที่แสดงใน dropdown
-    issueDescription: "",
+    fullname: '',
+    role: '',
+    department: '',
+    issueDescription: '',
   });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  const [userData, setUserData] = useState({
-    name: "",
-    role: "หมอ",
-  });
-
-  // ดึงข้อมูลจาก localStorage เมื่อหน้าโหลด
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const userType = localStorage.getItem("user_type");
+    const fetchProfile = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          setError('กรุณาล็อกอินเพื่อดำเนินการต่อ');
+          setLoading(false);
+          return;
+        }
 
-    if (token && userType) {
-      // สมมติว่ามีชื่อผู้ใช้ที่ดึงจาก API หรือจากข้อมูลที่ล็อกอิน
-      setUserData({
-        name: "ผู้ใช้งาน", // ใช้ข้อมูลชื่อจริงจากระบบที่ดึงมา
-        role: userType === "1" ? "หมอ" : "พยาบาล", // สมมติว่า user_type 1 = หมอ และ 2 = พยาบาล
-      });
-      setReport({
-        name: "ผู้ใช้งาน", // ค่าเริ่มต้นชื่อผู้ใช้
-        role: userType === "1" ? "หมอ" : "พยาบาล", // แสดงบทบาทตาม user_type
-        issueDescription: "",
-      });
-    }
+        const response = await fetch('http://localhost:5000/api/profile', {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          setError(`ไม่สามารถดึงข้อมูลโปรไฟล์ได้: ${response.status} - ${errorText}`);
+          throw new Error(`ไม่สามารถดึงข้อมูลโปรไฟล์ได้: ${response.status} - ${errorText}`);
+        }
+
+        const data = await response.json();
+        setReport({
+          fullname: data.doctor.fullname || 'ผู้ใช้งาน',
+          role: data.doctor.role || 'doctor',
+          department: data.doctor.department || 'ไม่มีข้อมูลแผนก',
+          issueDescription: '',
+        });
+      } catch (err) {
+        setError('เกิดข้อผิดพลาดในการดึงข้อมูลโปรไฟล์');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -48,62 +92,144 @@ const ReportIssuePage = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("Report Submitted:", report);
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('กรุณาล็อกอินเพื่อดำเนินการต่อ');
+      return;
+    }
+
+    const response = await fetch('http://localhost:5000/api/reports', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(report),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      setError(`ไม่สามารถส่งรายงานได้: ${errorText}`);
+      return;
+    }
+
+    // ใช้ SweetAlert2 สำหรับแสดงข้อความสำเร็จ
+    Swal.fire({
+      icon: 'success',
+      title: 'ส่งรายงานสำเร็จ',
+      text: 'รายงานของคุณถูกส่งเรียบร้อยแล้ว!',
+      confirmButtonText: 'ตกลง',
+      confirmButtonColor: '#3085d6',
+      background: '#f4f6fc',
+      showCloseButton: true,
+    });
+
+    // รีเซ็ตแค่รายละเอียดปัญหาหลังจากส่งรายงาน
+    setReport((prevReport) => ({
+      ...prevReport,
+      issueDescription: '', // รีเซ็ตแค่ค่าส่วนของ issueDescription
+    }));
+
+  } catch (err) {
+    setError('เกิดข้อผิดพลาดในการส่งรายงาน');
+    // ใช้ SweetAlert2 สำหรับแสดงข้อความผิดพลาด
+    Swal.fire({
+      icon: 'error',
+      title: 'เกิดข้อผิดพลาด',
+      text: 'ไม่สามารถส่งรายงานได้ กรุณาลองใหม่อีกครั้ง',
+      confirmButtonText: 'ตกลง',
+      confirmButtonColor: '#d33',
+      background: '#f8d7da',
+      showCloseButton: true,
+    });
+  }
+};
+
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white to-blue-100">
+        <p className="text-blue-600 text-lg font-medium animate-pulse">กำลังโหลดข้อมูล...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white to-blue-100">
+        <p className="text-red-600 text-lg font-medium bg-white px-6 py-4 rounded-xl shadow">{error}</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen w-full flex justify-center items-center bg-gray-100">
-      <div className="bg-white p-8 shadow-lg rounded-lg w-full max-w-3xl">
-        <h1 className="text-3xl font-semibold text-gray-800 mb-6 text-center">รายงานปัญหา</h1>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-gray-700">ชื่อของคุณ</label>
-            <input
+    <div className="min-h-screen flex justify-center items-start bg-gradient-to-br from-white to-blue-100 px-4 pt-32 pb-12">
+      <div className="bg-white rounded-3xl shadow-2xl p-10 w-full max-w-3xl border border-blue-100">
+        <h1 className="text-4xl font-bold text-blue-800 mb-10 text-center">📋 รายงานปัญหา</h1>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Full Name */}
+          <div>
+            <label className="block text-gray-700 font-medium mb-2">👤 ชื่อของคุณ</label>
+            <Input
               type="text"
-              name="name"
-              value={report.name}
-              onChange={handleChange}
-              className="mt-2 p-2 w-full border border-gray-300 rounded-md text-black"
-              placeholder="กรอกชื่อ"
-              required
+              name="fullname"
+              value={report.fullname}
+              readOnly
+              className="bg-transparent border-none text-gray-800 cursor-default font-medium"
             />
           </div>
 
-          <div className="mb-4">
-            <label className="block text-gray-700">บทบาท</label>
-            <select
+          {/* Role */}
+          <div>
+            <label className="block text-gray-700 font-medium mb-2">🎓 บทบาท</label>
+            <Input
+              type="text"
               name="role"
               value={report.role}
-              onChange={handleSelectChange}
-              className="mt-2 p-2 w-full border border-gray-300 rounded-md text-black"
-            >
-              <option value="หมอ">หมอ</option>
-              <option value="พยาบาล">พยาบาล</option>
-            </select>
+              readOnly
+              className="bg-transparent border-none text-gray-800 cursor-default font-medium"
+            />
           </div>
 
-          <div className="mb-4">
-            <label className="block text-gray-700">รายละเอียดปัญหา</label>
-            <textarea
+          {/* Department */}
+          <div>
+            <label className="block text-gray-700 font-medium mb-2">🏥 แผนก</label>
+            <Input
+              type="text"
+              name="department"
+              value={report.department}
+              readOnly
+              className="bg-transparent border-none text-gray-800 cursor-default font-medium"
+            />
+          </div>
+
+          {/* Issue Description */}
+          <div>
+            <label className="block text-gray-700 font-medium mb-2">📝 รายละเอียดปัญหา</label>
+            <Textarea
               name="issueDescription"
               value={report.issueDescription}
               onChange={handleChange}
-              className="mt-2 p-2 w-full border border-gray-300 rounded-md text-black"
-              placeholder="กรอกรายละเอียดปัญหาที่พบ"
-              rows={4}
+              placeholder="กรุณากรอกรายละเอียดปัญหาที่พบ"
+              rows={6}
               required
+              className="resize-none"
             />
           </div>
 
+          {/* Submit Button */}
           <div className="flex justify-center">
-            <button
+            <Button
               type="submit"
-              className="bg-blue-500 text-white py-2 px-6 rounded hover:bg-blue-600"
+              className="bg-blue-600 text-white px-8 py-3 rounded-xl hover:bg-blue-700 shadow-md hover:shadow-lg transition-all duration-300"
             >
               ส่งรายงาน
-            </button>
+            </Button>
           </div>
         </form>
       </div>

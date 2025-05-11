@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import history from "@/public/history.png";
 import checkup from "@/public/checkup.png";
 import report from "@/public/report.png";
-import camera from "@/public/camera.svg";
+import download from "@/public/download.jpeg";
 import bg from "@/public/bg.jpg";
 
 const HomePage = () => {
@@ -45,7 +45,7 @@ const HomePage = () => {
             { src: history, alt: "ประวัติผู้ป่วย", label: "ประวัติผู้ป่วย", path: "/Signlanguage/Patient" },
             { src: checkup, alt: "รายการซักประวัติ", label: "รายการซักประวัติ", path: "/Signlanguage/Takehistory" },
             { src: report, alt: "รายงาน", label: "รายงาน", path: "/Signlanguage/Reportt" },
-            { src: camera, alt: "เปิดกล้อง", label: "เปิดกล้อง", path: "/Signlanguage/Camera" },
+            { src: download, alt: "วินิฉัย", label: "วินิฉัย", path: "/Signlanguage/Diagnose" },
           ].map((card, index) => (
             <button
               key={index}
