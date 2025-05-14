@@ -1,6 +1,6 @@
 'use client';
 
-import { Trash2 } from 'lucide-react';
+import { Trash2, Edit2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getAllPatients, deletePatient } from '@/app/lib/patients';
@@ -51,7 +51,6 @@ export default function PatientPage() {
 
   const handleDelete = async (id: number) => {
     try {
-      // ใช้ SweetAlert2 แสดงข้อความยืนยันการลบ
       const result = await Swal.fire({
         title: 'ยืนยันการลบผู้ป่วย',
         text: `คุณแน่ใจหรือไม่ว่าต้องการลบผู้ป่วยรหัส ${id}? การกระทำนี้ไม่สามารถย้อนกลับได้`,
@@ -166,6 +165,13 @@ export default function PatientPage() {
                     <td className="p-4">{patient.height ? patient.height.toFixed(0) : '-'}</td>
                     <td className="p-4">{patient.weight ? patient.weight.toFixed(0) : '-'}</td>
                     <td className="p-4 flex space-x-2">
+                      <Link
+                        href={`/Signlanguage/PatientHistoryForm?id_card=${patient.id_card}`}
+                        className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors duration-200"
+                        title="แก้ไขข้อมูลผู้ป่วย"
+                      >
+                        <Edit2 size={20} />
+                      </Link>
                       <button
                         onClick={() => handleDelete(patient.id)}
                         className="p-2 rounded-full text-red-500 hover:bg-red-100 hover:text-red-700 transition-colors duration-200"

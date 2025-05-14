@@ -560,40 +560,44 @@ def save_diagnosis():
         if conn:
             conn.close()
             
-@app.route('/api/patients/<string:id_card>', methods=['PUT'])
-def update_patient(id_card):
-    data = request.get_json()
+            
+# @app.route('/api/patients/<string:id_card>', methods=['PUT'])
+# def update_patient(id_card):
+#     data = request.get_json()
 
-    # กำหนดฟิลด์ที่จำเป็นต้องมี
-    required_fields = ['name', 'gender', 'age', 'nationality', 'height', 'weight']
-    if not all(field in data for field in required_fields):
-        return jsonify({'error': 'Missing fields in request'}), 400
+#     # กำหนดฟิลด์ที่จำเป็นต้องมี
+#     required_fields = ['name', 'gender', 'age', 'nationality', 'height', 'weight']
+#     if not all(field in data for field in required_fields):
+#         return jsonify({'error': 'Missing fields in request'}), 400
 
-    conn = get_db_connection()
-    cursor = conn.cursor()
+#     conn = get_db_connection()
+#     cursor = conn.cursor()
 
-    # ค้นหาผู้ป่วยด้วย id_card
-    cursor.execute('SELECT * FROM patients WHERE id_card = %s', (id_card,))
-    patient = cursor.fetchone()
+#     # ค้นหาผู้ป่วยด้วย id_card
+#     cursor.execute('SELECT * FROM patients WHERE id_card = %s', (id_card,))
+#     patient = cursor.fetchone()
 
-    if not patient:
-        conn.close()
-        return jsonify({'error': 'Patient not found'}), 404
+#     if not patient:
+#         conn.close()
+#         return jsonify({'error': 'Patient not found'}), 404
 
-    # อัปเดตข้อมูลผู้ป่วยในฐานข้อมูล
-    cursor.execute('''
-        UPDATE patients
-        SET name = %s, gender = %s, age = %s, nationality = %s, height = %s, weight = %s
-        WHERE id_card = %s
-    ''', (
-        data['name'], data['gender'], data['age'],
-        data['nationality'], data['height'], data['weight'], id_card
-    ))
+#     # อัปเดตข้อมูลผู้ป่วยในฐานข้อมูล
+#     cursor.execute('''
+#         UPDATE patients
+#         SET name = %s, gender = %s, age = %s, nationality = %s, height = %s, weight = %s
+#         WHERE id_card = %s
+#     ''', (
+#         data['name'], data['gender'], data['age'],
+#         data['nationality'], data['height'], data['weight'], id_card
+#     ))
 
-    conn.commit()
-    conn.close()
+#     conn.commit()
+#     conn.close()
 
-    return jsonify({'message': 'Patient updated successfully'}), 200
+#     return jsonify({'message': 'Patient updated successfully'}), 200
+
+
+# # (Removed duplicate and incorrect update_patient route handler)
 
     
 

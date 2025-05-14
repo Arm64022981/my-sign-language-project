@@ -10,13 +10,11 @@ interface Prediction {
 const labelTranslationsSL: { [key: string]: string } = {
   hello: 'สวัสดี',
   thankyou: 'ขอบคุณ',
-  
 };
 
 const labelTranslationsTH: { [key: string]: string } = {
   history1: 'อาการทางประวัติ 1',
   history2: 'อาการทางประวัติ 2',
-  // เพิ่ม label อื่นๆ
 };
 
 const getLabelTranslations = (model: string) => {
@@ -178,11 +176,11 @@ const SignLanguagePage: React.FC = () => {
         context.strokeStyle = color;
         context.lineWidth = 3;
         context.strokeRect(x1, y1, x2 - x1, y2 - y1);
-
         context.fillStyle = color;
         context.font = 'bold 16px sans-serif';
-        const labelText = `${getLabelTranslations(model)[prediction.label] || prediction.label}: ${(prediction.confidence * 100).toFixed(1)}%`;
-        context.fillText(labelText, x1 + 5, y1 > 20 ? y1 - 5 : y1 + 20);
+
+        const labelText = `${getLabelTranslations(model)[prediction.label] || prediction.label} (${(prediction.confidence * 100).toFixed(1)}%)`;
+        context.fillText(labelText, x1 + 5, y1 > 20 ? y1 - 5 : y1 + 15);
       });
     };
 
@@ -195,83 +193,58 @@ const SignLanguagePage: React.FC = () => {
     };
   }, [isCameraActive, model]);
 
+  const toggleCamera = () => {
+    setIsCameraActive(!isCameraActive);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-white flex items-center justify-center p-4">
-      <div className="w-full max-w-5xl bg-white rounded-2xl shadow-xl p-6 border">
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">ระบบแปลภาษามือ & ซักประวัติ</h1>
-          <p className="text-gray-500 mt-1">ใช้กล้องเพื่อจับภาพแล้วแปลเป็นข้อความภาษาไทย</p>
-        </div>
+    <div className="relative min-h-screen flex flex-col items-center justify-start p-4 bg-gray-100">
+      {/* เบลอพื้นหลังเมื่อเปิดกล้อง */}
+      {isCameraActive && (
+        <div className="absolute inset-0 backdrop-blur-md z-0"></div>
+      )}
 
-        {errorMessage && (
-          <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg flex justify-between items-center">
-            <span>{errorMessage}</span>
-            <button
-              className="text-blue-600 underline"
-              onClick={() => {
-                setIsCameraActive(false);
-                setTimeout(() => setIsCameraActive(true), 100);
-              }}
-            >
-              ลองใหม่
-            </button>
-          </div>
-        )}
+      <div className="z-10 w-full max-w-3xl space-y-4">
+        <h1 className="text-2xl font-bold text-center">ระบบแปลภาษามือแบบเรียลไทม์</h1>
 
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 bg-gray-50 p-4 rounded-lg">
+        <div className="flex justify-center gap-4">
           <button
-            className={`flex items-center px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
-              isCameraActive ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
-            } text-white`}
-            onClick={() => setIsCameraActive((prev) => !prev)}
+            onClick={toggleCamera}
+            className={`px-4 py-2 rounded text-white ${isCameraActive ? 'bg-red-500' : 'bg-green-500'}`}
           >
             {isCameraActive ? 'ปิดกล้อง' : 'เปิดกล้อง'}
           </button>
 
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">โหมด:</label>
-            <select
-              className="p-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
-              value={model}
-              onChange={(e) => setModel(e.target.value as 'SL' | 'TH')}
-            >
-              <option value="SL">ภาษามือ</option>
-              <option value="TH">ซักประวัติ</option>
-            </select>
-          </div>
+          <select
+            value={model}
+            onChange={(e) => setModel(e.target.value as 'SL' | 'TH')}
+            className="px-3 py-2 border rounded"
+          >
+            <option value="SL">แปลภาษามือ</option>
+            <option value="TH">แปลประวัติคนไข้</option>
+          </select>
         </div>
 
-        <div className="relative rounded-xl overflow-hidden border shadow-lg mb-6">
-          <video ref={videoRef} className="w-full h-auto bg-black" autoPlay playsInline muted />
+        {errorMessage && <p className="text-red-600 text-center">{errorMessage}</p>}
+
+        <div className="relative w-full">
+          <video ref={videoRef} autoPlay playsInline muted className="w-full rounded-lg shadow-md" />
           <canvas ref={canvasRef} className="absolute top-0 left-0 w-full h-full pointer-events-none" />
         </div>
 
-        {Object.keys(allLabels).length > 0 && (
-          <div className="bg-gray-50 p-4 rounded-lg border">
-            <h2 className="font-semibold text-gray-700 mb-3">ผลการตรวจจับ:</h2>
-            <table className="w-full text-sm text-left text-gray-700">
-              <thead className="text-xs text-gray-500 uppercase bg-gray-200">
-                <tr>
-                  <th className="px-4 py-2">คำแปล</th>
-                  <th className="px-4 py-2">ความมั่นใจ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(allLabels).map(([label, confidence]) => (
-                  <tr key={label} className="border-b">
-                    <td className="px-4 py-2" style={{ color: labelColors[label] }}>
-                      {getLabelTranslations(model)[label] || label}
-                    </td>
-                    <td className="px-4 py-2">{(confidence * 100).toFixed(2)}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <div className="mt-4 space-y-2">
+          {Object.entries(allLabels).map(([label, confidence]) => (
+            <div key={label} className="flex items-center gap-4">
+              <span className="w-4 h-4 rounded-full" style={{ backgroundColor: labelColors[label] }}></span>
+              <span className="flex-1">{getLabelTranslations(model)[label] || label}</span>
+              <span className="text-sm text-gray-600">{(confidence * 100).toFixed(1)}%</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
 };
 
 export default SignLanguagePage;
+
