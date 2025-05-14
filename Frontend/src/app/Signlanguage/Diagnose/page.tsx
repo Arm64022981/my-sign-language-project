@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import Swal from 'sweetalert2';
 
 interface Patient {
   id: number;
@@ -55,7 +56,6 @@ export default function DoctorDashboard() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'diagnosed'>('all');
-  const [showSuccess, setShowSuccess] = useState(false);
   const [formMessage, setFormMessage] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -197,11 +197,16 @@ export default function DoctorDashboard() {
         throw new Error(errorData.message || `ไม่สามารถบันทึกการวินิจฉัยได้ (สถานะ: ${response.status})`);
       }
 
-      setShowSuccess(true);
+      await Swal.fire({
+        icon: 'success',
+        title: 'สำเร็จ!',
+        text: 'บันทึกการวินิจฉัยสำเร็จ',
+        showConfirmButton: false,
+        timer: 1500,
+      });
       setFormMessage('บันทึกการวินิจฉัยสำเร็จ!');
       reset();
       setTimeout(() => {
-        setShowSuccess(false);
         setFormMessage('');
       }, 3000);
     } catch (error: any) {
@@ -269,33 +274,15 @@ export default function DoctorDashboard() {
                 <tr>
                   <th className="p-4">ชื่อ-นามสกุล</th>
                   <th className="p-4">อายุ</th>
-                  <th className="p-4">อาการ</th>
-                  <th className="p-4">วันที่เข้ารักษา</th>
+                  <th className="p-4">เพศ</th>
+                  <th className="p-4">สัญชาติ</th>
                   <th className="p-4">สถานะ</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredPatients.map((patient) => (
-                  <tr
-                    key={patient.id}
-                    className={`border-b hover:bg-blue-50 ${patient.id_card ? 'cursor-pointer' : 'cursor-not-allowed'}`}
-                    onClick={() => patient.id_card && fetchPatientById(patient.id_card)}
-                    title={patient.id_card ? '' : 'ไม่มีรหัสบัตรประชาชน'}
-                  >
-                    <td className="p-4 text-black">{patient.name}</td>
-                    <td className="p-4 text-black">{patient.age} ปี</td>
-                    <td className="p-4 text-black">{patient.symptoms || '-'}</td>
-                    <td className="p-4 text-black">{patient.admissionDate || '-'}</td>
-                    <td className="p-4 text-black">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs text-black ${
-                          patient.diagnosis ? 'bg-green-100' : 'bg-yellow-100'
-                        }`}
-                      >
-                        {patient.diagnosis ? 'วินิจฉัยแล้ว' : 'รอวินิจฉัย'}
-                      </span>
-                    </td>
-                  </tr>
+                  // prettier-ignore
+                  <tr key={patient.id} className={`border-b hover:bg-blue-50 ${patient.id_card ? 'cursor-pointer' : 'cursor-not-allowed'}`} onClick={() => patient.id_card && fetchPatientById(patient.id_card)} title={patient.id_card ? '' : 'ไม่มีรหัสบัตรประชาชน'}><td className="p-4 text-black">{patient.name}</td><td className="p-4 text-black">{patient.age} ปี</td><td className="p-4 text-black">{patient.gender || '-'}</td><td className="p-4 text-black">{patient.nationality || '-'}</td><td className="p-4 text-black"><span className={`px-2 py-1 rounded-full text-xs text-black ${patient.diagnosis ? 'bg-green-100' : 'bg-yellow-100'}`}>{patient.diagnosis ? 'วินิจฉัยแล้ว' : 'รอวินิจฉัย'}</span></td></tr>
                 ))}
               </tbody>
             </table>
@@ -396,9 +383,7 @@ export default function DoctorDashboard() {
               <h3 className="text-lg font-semibold text-gray-800 mb-4">บันทึกการวินิจฉัย</h3>
               {formMessage && (
                 <p
-                  className={`text-sm mb-4 ${
-                    formMessage.includes('สำเร็จ') ? 'text-green-600' : 'text-red-600'
-                  }`}
+                  className={`text-sm mb-4 ${formMessage.includes('สำเร็จ') ? 'text-green-600' : 'text-red-600'}`}
                 >
                   {formMessage}
                 </p>
@@ -447,15 +432,6 @@ export default function DoctorDashboard() {
                 </div>
               </div>
             </form>
-          </div>
-        )}
-
-        {showSuccess && (
-          <div className="fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2 animate-[fade-in_0.3s_ease-out]">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-            </svg>
-            <span>บันทึกการวินิจฉัยสำเร็จ</span>
           </div>
         )}
       </div>

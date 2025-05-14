@@ -4,8 +4,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
-import bghistory from '@/public/bghistory.jpg';
+import Takeahistory from '@/public/Takeahistory.jpg';
 import React from 'react';
+import Swal from 'sweetalert2';
 
 // อินเตอร์เฟซและฟังก์ชันสำหรับการตรวจจับภาษามือ
 interface Prediction {
@@ -34,7 +35,7 @@ const labelTranslationsSL: { [key: string]: string } = {
   'Body soreness': 'อาการปวดร่างกาย',
   'Burning eyes': 'ตาแสบ',
   'Burning stomach pain': 'อาการปวดท้องแสบร้อน',
-  'Chest tightness': 'อาการแน่นหน้าอก',
+  'Chest tightness': 'อาการแน่นหน้าออก',
   'Common Cold': 'โรคหวัด',
   Constipation: 'ท้องผูก',
   Cough: 'อาการไอ',
@@ -176,29 +177,29 @@ const SignLanguagePopup = ({ isOpen, onClose, onVideoSelect }: { isOpen: boolean
   const videoCategories: { [key: string]: { [key: string]: { [key: string]: string } | string } } = {
     'ซักประวัติ': {
       'ข้อมูลทั่วไป': {
-        'เจ็บ?': '/videos/name.mp4',
-        'เวียนหัว?': '/videos/age.mp4',
-        'ป่วยนานหรือยัง?': '/videos/chronic_diseases.mp4',
-        'ป่วยหนักแค่ไหน?': '/videos/surgery_history.mp4',
-        'ปัจจัยที่ทำให้อาการดีขึ้นหรือลดลง?': '/videos/name.mp4',
-        'ระดับ 1-10?': '/videos/age.mp4',
-        'หูอื้อ?': '/videos/chronic_diseases.mp4',
-        'อาการป่วยวันนี้?': '/videos/surgery_history.mp4',
-        'อาการป่วยอื่นๆ?': '/videos/surgery_history.mp4',
+        'เจ็บ?': '/question/ข้อมูลทั่วไปเกี่ยวกับอาการผู้ป่วย/เจ็บ/hurt01.MOV',
+        'เวียนหัว?': '/question/ข้อมูลทั่วไปเกี่ยวกับอาการผู้ป่วย/ป่วยนานหรือยัง/Haveyoubeensickforaongtime01.MOV',
+        'ป่วยนานหรือยัง?': '/question/ข้อมูลทั่วไปเกี่ยวกับอาการผู้ป่วย/ป่วยหนักแค่ไหน/Howeriouslyillareyou01.MOV',
+        'ป่วยหนักแค่ไหน?': '/question/ข้อมูลทั่วไปเกี่ยวกับอาการผู้ป่วย/ปัจจัยที่ทำให้อาการดีขึ้นหรือลดลง/Factorsthatimproveorreducesymptoms01.MOV',
+        'ปัจจัยที่ทำให้อาการดีขึ้นหรือลดลง?': '/ข้อมูลทั่วไปเกี่ยวกับอาการผู้ป่วย/ระดับ/Lv1_10_01.MOV',
+        'ระดับ 1-10?': '/question/ข้อมูลทั่วไปเกี่ยวกับอาการผู้ป่วย/เวียนหัว/dizzy01.MOV',
+        'หูอื้อ?': '/question/ข้อมูลทั่วไปเกี่ยวกับอาการผู้ป่วย/หูอื้อ/Tinnitus_01.MOV',
+        'อาการป่วยวันนี้?': '/question/ข้อมูลทั่วไปเกี่ยวกับอาการผู้ป่วย/อาการป่วยวันนี้/Todays_illness01.MOV',
+        'อาการป่วยอื่นๆ?': '/question/ข้อมูลทั่วไปเกี่ยวกับอาการผู้ป่วย/อาการป่วยอื่นๆ/Other_illnesses01.MOV',
       },
       'ค่าท่าทางสุขภาพเบื้องต้น': {
-        'ความดันโลหิต?': '/videos/weight.mp4',
-        'อัตราการเต้นของหัวใจ?': '/videos/height.mp4',
-        'อัตราการหายใจ?': '/videos/blood_type.mp4',
-        'อุณหภูมิร่างกาย?': '/videos/gender.mp4',
+        'ความดันโลหิต?': '/question/ค่าท่าทางสุขภาพเบื้องต้น/ความดันโลหิต/bloodpressure01.MOV',
+        'อัตราการเต้นของหัวใจ?': '/question/ค่าท่าทางสุขภาพเบื้องต้น/อัตราการเต้นของหัวใจ/heartrate01.MOV',
+        'อัตราการหายใจ?': '/question/ค่าท่าทางสุขภาพเบื้องต้น/อัตราการหายใจ/breathingrate01.MOV',
+        'อุณหภูมิร่างกาย?': '/question/ค่าท่าทางสุขภาพเบื้องต้น/อุณหภูมิร่างกาย/bodytemperature01.MOV',
       },
     },
     'อาการ': {
       'ปวดหัว': '/symptoms/Headache/IMG_4443.MOV',
-      'กินไม่ได้': '/symptoms/cannot_eat.mp4',
-      'กระเพาะอาหาร': '/symptoms/stomach.mp4',
-      'ปวดขมับ': '/symptoms/temple_pain.mp4',
-      'การอุดตัน': '/symptoms/blockage.mp4',
+      'กินไม่ได้': '/symptoms/Cantswallow/IMG_4406.MOV',
+      'กระเพาะอาหาร': '/symptoms/Stomachproblems/IMG_3545.MOV',
+      'ปวดขมับ': '/symptoms/Armpain/IMG_3505.MOV',
+      'การอุดตัน': '/symptoms/Dentalfillings/IMG_3469.Mov',
       'อาการแพ้': '/symptoms/allergy.mp4',
       'ภูมิแพ้': '/symptoms/allergic_pushp.mp4',
       'ตามัว': '/symptoms/blurred_vision.mp4',
@@ -422,7 +423,6 @@ export default function PatientHistoryForm() {
   const [allergyValue, setAllergyValue] = useState<'แพ้' | 'ไม่แพ้' | ''>('');
   const [showAllergyDetails, setShowAllergyDetails] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const [isSignLanguagePopupOpen, setIsSignLanguagePopupOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [nurseName, setNurseName] = useState<string>('');
@@ -533,7 +533,7 @@ export default function PatientHistoryForm() {
     let isMounted = true;
 
     const connectWebSocket = () => {
-      const ws = new WebSocket('wss://a003-134-236-143-159.ngrok-free.app/ws/predict/');
+      const ws = new WebSocket('wss://3b0b-202-80-249-225.ngrok-free.app/ws/predict/');
       socketRef.current = ws;
 
       ws.onopen = () => {
@@ -733,18 +733,32 @@ export default function PatientHistoryForm() {
 
       const result = await response.json();
       if (response.ok) {
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 3000);
+        await Swal.fire({
+          icon: 'success',
+          title: 'สำเร็จ!',
+          text: 'บันทึกข้อมูลสำเร็จ',
+          showConfirmButton: false,
+          timer: 1500,
+        });
         reset();
         setAllergyValue('');
         setShowAllergyDetails(false);
-        alert('บันทึกข้อมูลสำเร็จ');
       } else {
-        alert(`เกิดข้อผิดพลาด: ${result.message}`);
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: result.message || 'ไม่สามารถบันทึกข้อมูลได้',
+          showConfirmButton: true,
+        });
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('ไม่สามารถส่งข้อมูลได้');
+      await Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: 'ไม่สามารถส่งข้อมูลได้',
+        showConfirmButton: true,
+      });
     }
   };
 
@@ -779,7 +793,7 @@ export default function PatientHistoryForm() {
     <div
       className='min-h-screen flex items-start justify-center px-4 py-40'
       style={{
-        backgroundImage: `url(${bghistory.src})`,
+        backgroundImage: `url(${Takeahistory.src})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
@@ -1029,14 +1043,23 @@ export default function PatientHistoryForm() {
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(allLabels).map(([label, confidence]) => (
-                      <tr key={label} className='border-b'>
-                        <td className='px-3 py-2' style={{ color: labelColors[label] }}>
-                          {getLabelTranslations(model)[label] || label}
-                        </td>
-                        <td className='px-3 py-2'>{(confidence * 100).toFixed(2)}%</td>
-                      </tr>
-                    ))}
+                    {Object.entries(allLabels)
+                      .sort(([, confidenceA], [, confidenceB]) => confidenceB - confidenceA) // จัดเรียงตามความมั่นใจจากมากไปน้อย
+                      .map(([label, confidence], index) => (
+                        <tr
+                          key={label}
+                          className='border-b'
+                          style={index === 0 ? { backgroundColor: `${labelColors[label]}20` } : {}} // เพิ่มสีพื้นหลังสำหรับแถวแรก
+                        >
+                          <td
+                            className='px-3 py-2'
+                            style={{ color: labelColors[label] }}
+                          >
+                            {getLabelTranslations(model)[label] || label}
+                          </td>
+                          <td className='px-3 py-2'>{(confidence * 100).toFixed(2)}%</td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>
@@ -1044,31 +1067,6 @@ export default function PatientHistoryForm() {
           </div>
         </div>
       </div>
-
-      {/* การแจ้งเตือนบันทึกสำเร็จ */}
-      {showSuccess && (
-        <div className='fixed inset-0 flex items-center justify-center z-50 animate-[fade-in_0.3s_ease-out,scale-in_0.3s_ease-out]'>
-          <div className='bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2 max-w-sm'>
-            <div className='bg-green-100 rounded-full p-1 animate-[scale-in_0.3s_ease-out]'>
-              <svg
-                className='w-6 h-6 text-green-600'
-                fill='none'
-                stroke='currentColor'
-                viewBox='0 0 24 24'
-                xmlns='http://www.w3.org/2000/svg'
-              >
-                <path
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                  strokeWidth='2'
-                  d='M5 13l4 4L19 7'
-                />
-              </svg>
-            </div>
-            <span className='text-base font-medium'>บันทึกสำเร็จ</span>
-          </div>
-        </div>
-      )}
 
       {/* Popup ภาษามือ */}
       <SignLanguagePopup

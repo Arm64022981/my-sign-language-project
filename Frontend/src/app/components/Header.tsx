@@ -21,11 +21,11 @@ const Header = () => {
     };
 
     return (
-        <header className="bg-gradient-to-r from-gray-300 to-gray-500 text-white py-4 px-6 shadow-lg fixed top-0 left-0 w-full z-50 transition-all duration-300">
+        <header className="bg-blue-800 text-white py-4 px-6 shadow-xl drop-shadow-lg fixed top-0 left-0 w-full z-50 transition-all duration-300">
             <div className="container mx-auto flex justify-between items-center">
                 <button
                     onClick={() => handleNavigate("/Signlanguage/Homepage")}
-                    className="text-3xl font-extrabold tracking-tight cursor-pointer bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-200 hover:from-teal-200 hover:to-white transition-all duration-300"
+                    className="text-3xl font-extrabold tracking-tight cursor-pointer hover:text-blue-300 transition-all duration-300"
                 >
                     MediSing
                 </button>
@@ -36,14 +36,13 @@ const Header = () => {
                         <li>
                             <button
                                 onClick={() => handleNavigate("/Signlanguage/Profile")}
-                                className="relative flex items-center text-lg font-medium hover:text-teal-200 transition-all duration-300 group"
+                                className="relative flex items-center text-lg font-medium hover:text-blue-300 transition-all duration-300 group"
                             >
-                                {/* Icon กลมๆ */}
-                                <div className="w-10 h-10 rounded-full bg-teal-200 flex justify-center items-center">
+                                <div className="w-10 h-10 rounded-full bg-blue-600 flex justify-center items-center shadow-md">
                                     <FaUser className="text-xl text-white" />
                                 </div>
                                 {user && <span className="ml-2">{user}</span>}
-                                <span className="absolute left-0 bottom-0 w-0 h-[2px] bg-teal-200 group-hover:w-full transition-all duration-300"></span>
+                                <span className="absolute left-0 bottom-0 w-0 h-[2px] bg-blue-300 group-hover:w-full transition-all duration-300"></span>
                             </button>
                         </li>
                         <li>
@@ -53,11 +52,11 @@ const Header = () => {
                                     setUser(null);
                                     handleNavigate("/Signlanguage/Login"); 
                                 }}
-                                className="relative flex items-center text-lg font-medium hover:text-teal-200 transition-all duration-300 group"
+                                className="relative flex items-center text-lg font-medium hover:text-blue-300 transition-all duration-300 group"
                             >
                                 <span>ออกจากระบบ</span>
                                 <FiLogOut className="text-xl ml-2" />
-                                <span className="absolute left-0 bottom-0 w-0 h-[2px] bg-teal-200 group-hover:w-full transition-all duration-300"></span>
+                                <span className="absolute left-0 bottom-0 w-0 h-[2px] bg-blue-300 group-hover:w-full transition-all duration-300"></span>
                             </button>
                         </li>
                     </ul>

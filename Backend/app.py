@@ -482,69 +482,6 @@ def report_issue():
 
     return jsonify({"message": "รายงานได้รับการส่งเรียบร้อยแล้ว"}), 200
 
-# # PUT: อัปเดตข้อมูลผู้ป่วยตาม id
-# @app.route('/api/patients/<int:id>', methods=['GET'])
-# def get_patient_with_diagnosis(id):
-#     try:
-#         conn = get_db_connection()
-#         cursor = conn.cursor()
-        
-#         # ดึงข้อมูลผู้ป่วย
-#         cursor.execute("SELECT * FROM patients WHERE id = %s", (id,))
-#         patient_row = cursor.fetchone()
-
-#         # ถ้าหากไม่พบผู้ป่วย
-#         if not patient_row:
-#             return jsonify({"message": "ไม่พบผู้ป่วย"}), 404
-        
-#         # ดึงข้อมูลการวินิจฉัยที่เกี่ยวข้องกับผู้ป่วย
-#         cursor.execute("""
-#     SELECT main_symptom, preliminary_diagnoses, treatment_plan, appointment, doctor_name
-#     FROM diagnoses
-#     WHERE patient_id = %s
-#     ORDER BY created_at DESC
-#     LIMIT 1
-# """, (str(patient_row[0]),))  # แปลง patient_id ให้เป็น string (TEXT)
-
-#         diagnoses_row = cursor.fetchone()
-        
-#         # ถ้ามีข้อมูลการวินิจฉัย
-#         if diagnoses_row:
-#             diagnosis = {
-#                 "main_symptom": diagnoses_row[0],
-#                 "preliminary_diagnosis": diagnoses_row[1],
-#                 "treatment_plan": diagnoses_row[2],
-#                 "appointment": diagnoses_row[3],
-#                 "doctor_name": diagnoses_row[4]
-#             }
-#         else:
-#            diagnoses = None  # ถ้าไม่มีข้อมูลการวินิจฉัย
-
-#         # รวมข้อมูลผู้ป่วยและการวินิจฉัย
-#         patient = {
-#             "id": patient_row[0],
-#             "name": patient_row[2],
-#             "age": patient_row[3],
-#             "weight": patient_row[4],
-#             "height": patient_row[5],
-#             "symptoms": patient_row[6],
-#             "allergy": patient_row[7],
-#             "allergydetails": patient_row[8],
-#             "blood_type": patient_row[14],
-#             "gender": patient_row[15],
-#             "nurse_name": patient_row[16],
-#             "nationality": patient_row[17],
-#             "diagnoses": diagnoses  # เพิ่มข้อมูลการวินิจฉัย
-#         }
-
-#         return jsonify(patient)
-
-#     except Exception as e:
-#         print("ERROR:", str(e))
-#         return jsonify({"message": f"เกิดข้อผิดพลาด: {str(e)}"}), 500
-
-
-
 # API Endpoint สำหรับบันทึกการวินิจฉัย
 @app.route('/api/diagnosis', methods=['POST'])
 def save_diagnosis():

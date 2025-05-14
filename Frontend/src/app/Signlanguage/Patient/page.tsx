@@ -1,6 +1,6 @@
 'use client';
 
-import { Trash2, Pencil } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getAllPatients, deletePatient } from '@/app/lib/patients';
@@ -137,7 +137,7 @@ export default function PatientPage() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-gray-700">
               <thead>
-                <tr className="bg-gradient-to-r from-indigo-600 to-blue-500 text-white">
+                <tr className="bg-blue-800 text-white">
                   <th className="p-4 text-left font-semibold">รหัสผู้ป่วย</th>
                   <th className="p-4 text-left font-semibold">ชื่อ-นามสกุล</th>
                   <th className="p-4 text-left font-semibold">เพศ</th>
@@ -166,13 +166,6 @@ export default function PatientPage() {
                     <td className="p-4">{patient.height ? patient.height.toFixed(0) : '-'}</td>
                     <td className="p-4">{patient.weight ? patient.weight.toFixed(0) : '-'}</td>
                     <td className="p-4 flex space-x-2">
-                      <Link
-                        href={`/Signlanguage/EditPatient?id=${patient.id}`}
-                        title="แก้ไขข้อมูลผู้ป่วย"
-                        className="p-2 rounded-full text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors duration-200"
-                      >
-                        <Pencil size={20} />
-                      </Link>
                       <button
                         onClick={() => handleDelete(patient.id)}
                         className="p-2 rounded-full text-red-500 hover:bg-red-100 hover:text-red-700 transition-colors duration-200"

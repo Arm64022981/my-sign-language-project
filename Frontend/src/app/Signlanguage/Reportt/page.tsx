@@ -62,12 +62,26 @@ const ReportIssuePage = () => {
         }
 
         const data = await response.json();
-        setReport({
-          fullname: data.doctor.fullname || 'ผู้ใช้งาน',
-          role: data.doctor.role || 'doctor',
-          department: data.doctor.department || 'ไม่มีข้อมูลแผนก',
-          issueDescription: '',
-        });
+        
+        // ตรวจสอบว่าเป็นข้อมูลของหมอหรือพยาบาล
+        if (data.doctor) {
+          setReport({
+            fullname: data.doctor.fullname || 'ผู้ใช้งาน',
+            role: 'หมอ',  // เปลี่ยนตรงนี้เป็น "หมอ"
+            department: data.doctor.department || 'ไม่มีข้อมูลแผนก',
+            issueDescription: '',
+          });
+        } else if (data.nurse) {
+          setReport({
+            fullname: data.nurse.fullname || 'ผู้ใช้งาน',
+            role: 'พยาบาล',  // เปลี่ยนตรงนี้เป็น "พยาบาล"
+            department: data.nurse.department || 'ไม่มีข้อมูลแผนก',
+            issueDescription: '',
+          });
+        } else {
+          setError('ไม่พบข้อมูลผู้ใช้งาน');
+        }
+
       } catch (err) {
         setError('เกิดข้อผิดพลาดในการดึงข้อมูลโปรไฟล์');
       } finally {
@@ -93,62 +107,60 @@ const ReportIssuePage = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setError('กรุณาล็อกอินเพื่อดำเนินการต่อ');
-      return;
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('กรุณาล็อกอินเพื่อดำเนินการต่อ');
+        return;
+      }
+
+      const response = await fetch('http://localhost:5000/api/reports', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(report),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        setError(`ไม่สามารถส่งรายงานได้: ${errorText}`);
+        return;
+      }
+
+      Swal.fire({
+        icon: 'success',
+        title: 'ส่งรายงานสำเร็จ',
+        text: 'รายงานของคุณถูกส่งเรียบร้อยแล้ว!',
+        confirmButtonText: 'ตกลง',
+        confirmButtonColor: '#3085d6',
+        background: '#f4f6fc',
+        showCloseButton: true,
+      });
+
+      // รีเซ็ตแค่รายละเอียดปัญหาหลังจากส่งรายงาน
+      setReport((prevReport) => ({
+        ...prevReport,
+        issueDescription: '', 
+      }));
+
+    } catch (err) {
+      setError('เกิดข้อผิดพลาดในการส่งรายงาน');
+      // ใช้ SweetAlert2 สำหรับแสดงข้อความผิดพลาด
+      Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: 'ไม่สามารถส่งรายงานได้ กรุณาลองใหม่อีกครั้ง',
+        confirmButtonText: 'ตกลง',
+        confirmButtonColor: '#d33',
+        background: '#f8d7da',
+        showCloseButton: true,
+      });
     }
-
-    const response = await fetch('http://localhost:5000/api/reports', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(report),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      setError(`ไม่สามารถส่งรายงานได้: ${errorText}`);
-      return;
-    }
-
-    // ใช้ SweetAlert2 สำหรับแสดงข้อความสำเร็จ
-    Swal.fire({
-      icon: 'success',
-      title: 'ส่งรายงานสำเร็จ',
-      text: 'รายงานของคุณถูกส่งเรียบร้อยแล้ว!',
-      confirmButtonText: 'ตกลง',
-      confirmButtonColor: '#3085d6',
-      background: '#f4f6fc',
-      showCloseButton: true,
-    });
-
-    // รีเซ็ตแค่รายละเอียดปัญหาหลังจากส่งรายงาน
-    setReport((prevReport) => ({
-      ...prevReport,
-      issueDescription: '', // รีเซ็ตแค่ค่าส่วนของ issueDescription
-    }));
-
-  } catch (err) {
-    setError('เกิดข้อผิดพลาดในการส่งรายงาน');
-    // ใช้ SweetAlert2 สำหรับแสดงข้อความผิดพลาด
-    Swal.fire({
-      icon: 'error',
-      title: 'เกิดข้อผิดพลาด',
-      text: 'ไม่สามารถส่งรายงานได้ กรุณาลองใหม่อีกครั้ง',
-      confirmButtonText: 'ตกลง',
-      confirmButtonColor: '#d33',
-      background: '#f8d7da',
-      showCloseButton: true,
-    });
-  }
-};
-
+  };
 
   if (loading) {
     return (
