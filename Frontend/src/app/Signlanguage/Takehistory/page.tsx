@@ -3,9 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { format } from 'date-fns';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Takeahistory from '@/public/Takeahistory.jpg';
-import React from 'react';
 import Swal from 'sweetalert2';
 
 // อินเตอร์เฟซและฟังก์ชันสำหรับการตรวจจับภาษามือ
@@ -35,7 +34,7 @@ const labelTranslationsSL: { [key: string]: string } = {
   'Body soreness': 'อาการปวดร่างกาย',
   'Burning eyes': 'ตาแสบ',
   'Burning stomach pain': 'อาการปวดท้องแสบร้อน',
-  'Chest tightness': 'อาการแน่นหน้าออก',
+  'Chest tightness': 'อาการแน่นหน้าอก',
   'Common Cold': 'โรคหวัด',
   Constipation: 'ท้องผูก',
   Cough: 'อาการไอ',
@@ -98,7 +97,7 @@ const labelTranslationsTH: { [key: string]: string } = {
   'Full Name': 'ชื่อ-นามสกุล',
   Gender: 'เพศ',
   'Have you been sick for a long time': 'ป่วยมานานหรือไม่',
-  'Heart rate': 'ปลัตราการเต้นของหัวใจ',
+  'Heart rate': 'อัตราการเต้นของหัวใจ',
   Height: 'ส่วนสูง',
   'History of drug allergy': 'ประวัติการแพ้ยา',
   'How often do you take medication': 'ความถี่ในการใช้ยา',
@@ -124,15 +123,14 @@ const getLabelTranslations = (model: string) => {
   return model === 'TH' ? labelTranslationsTH : labelTranslationsSL;
 };
 
-// ปรับปรุงฟังก์ชัน getRandomColor ให้สร้างสีที่สว่างและเหมาะสม
 const getRandomColor = () => {
-  const r = Math.floor(Math.random() * 156) + 100; // ค่า R อยู่ในช่วง 100-255 เพื่อความสว่าง
-  const g = Math.floor(Math.random() * 156) + 100; // ค่า G อยู่ในช่วง 100-255
-  const b = Math.floor(Math.random() * 156) + 100; // ค่า B อยู่ในช่วง 100-255
+  const r = Math.floor(Math.random() * 156) + 100;
+  const g = Math.floor(Math.random() * 156) + 100;
+  const b = Math.floor(Math.random() * 156) + 100;
   return `rgb(${r}, ${g}, ${b})`;
 };
 
-// คอมโพเนนต์ที่มีอยู่ (Input, Checkbox, Select, Button, SignLanguagePopup, NurseInfo)
+// คอมโพเนนต์ UI
 const Input = ({ className = '', ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
     className={`w-full p-1 border border-gray-400 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white shadow-sm text-black text-sm ${className}`}
@@ -340,16 +338,16 @@ const SignLanguagePopup = ({ isOpen, onClose, onVideoSelect }: { isOpen: boolean
                 <option value=''>เลือกคำถาม</option>
                 {selectedCategory === 'ซักประวัติ' && selectedSubCategory
                   ? Object.keys((videoCategories['ซักประวัติ'] as { [key: string]: { [key: string]: string } })[selectedSubCategory]).map((question) => (
+                    <option key={question} value={question}>
+                      {question}
+                    </option>
+                  ))
+                  : selectedCategory === 'อาการ'
+                    ? Object.keys(videoCategories['อาการ'] as { [key: string]: string }).map((question) => (
                       <option key={question} value={question}>
                         {question}
                       </option>
                     ))
-                  : selectedCategory === 'อาการ'
-                    ? Object.keys(videoCategories['อาการ'] as { [key: string]: string }).map((question) => (
-                        <option key={question} value={question}>
-                          {question}
-                        </option>
-                      ))
                     : null}
               </Select>
             </div>
@@ -384,7 +382,8 @@ type PatientForm = {
   height: number;
   symptoms: string;
   allergy: 'แพ้' | 'ไม่แพ้' | '';
-  allergydetails?: string;
+  allergy_details_drug?: string;
+  allergy_details_food?: string;
   admissionDate: string;
   chronicDiseases?: string;
   medications?: string;
@@ -397,16 +396,22 @@ type PatientForm = {
 };
 
 export default function PatientHistoryForm() {
-  const { register, handleSubmit, control, reset, setValue } = useForm<PatientForm>({
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const id_card = searchParams.get('id_card') || '';
+  const isEditMode = searchParams.get('edit') === 'true';
+
+  const { register, handleSubmit, control, reset, setValue, formState: { errors } } = useForm<PatientForm>({
     defaultValues: {
-      id_card: '',
+      id_card: id_card,
       name: '',
       age: 0,
       weight: 0,
       height: 0,
       symptoms: '',
       allergy: '',
-      allergydetails: '',
+      allergy_details_drug: '',
+      allergy_details_food: '',
       admissionDate: format(new Date(), 'yyyy-MM-dd'),
       chronicDiseases: '',
       medications: '',
@@ -419,13 +424,14 @@ export default function PatientHistoryForm() {
     },
   });
 
-  const router = useRouter();
   const [allergyValue, setAllergyValue] = useState<'แพ้' | 'ไม่แพ้' | ''>('');
   const [showAllergyDetails, setShowAllergyDetails] = useState(false);
-  const [isCameraOn, setIsCameraOn] = useState(false);
+  const [isCameraOn, setIsCameraOn] = useState<boolean>(false);
   const [isSignLanguagePopupOpen, setIsSignLanguagePopupOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [nurseName, setNurseName] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // สถานะสำหรับการตรวจจับภาษามือ
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -448,7 +454,12 @@ export default function PatientHistoryForm() {
         if (!token) {
           setNurseName('ไม่ระบุชื่อ');
           setValue('nurseName', 'ไม่ระบุชื่อ');
-          alert('กรุณาล็อกอินเพื่อเข้าถึงหน้านี้');
+          await Swal.fire({
+            icon: 'error',
+            title: 'เกิดข้อผิดพลาด',
+            text: 'กรุณาล็อกอินเพื่อเข้าถึงหน้านี้',
+            showConfirmButton: true,
+          });
           router.push('/login');
           return;
         }
@@ -464,7 +475,12 @@ export default function PatientHistoryForm() {
         if (response.status === 401) {
           const newToken = await refreshToken();
           if (!newToken) {
-            alert('เซสชันหมดอายุ กรุณาล็อกอินใหม่');
+            await Swal.fire({
+              icon: 'error',
+              title: 'เซสชันหมดอายุ',
+              text: 'กรุณาล็อกอินใหม่',
+              showConfirmButton: true,
+            });
             router.push('/login');
             return;
           }
@@ -491,7 +507,12 @@ export default function PatientHistoryForm() {
         console.error('Error fetching profile:', error);
         setNurseName('ไม่ระบุชื่อ');
         setValue('nurseName', 'ไม่ระบุชื่อ');
-        alert(`เกิดข้อผิดพลาดในการดึงข้อมูลโปรไฟล์: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: `ไม่สามารถดึงข้อมูลโปรไฟล์ได้: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          showConfirmButton: true,
+        });
         router.push('/login');
       }
     };
@@ -519,6 +540,7 @@ export default function PatientHistoryForm() {
           throw new Error(data.error || 'Failed to refresh token');
         }
       } catch (error) {
+        console.error('Error refreshing token:', error);
         localStorage.removeItem('token');
         localStorage.removeItem('refresh_token');
         return null;
@@ -527,6 +549,87 @@ export default function PatientHistoryForm() {
 
     fetchProfile();
   }, [setValue, router]);
+
+  // ดึงข้อมูลผู้ป่วยเมื่ออยู่ในโหมดแก้ไข
+  useEffect(() => {
+    const fetchPatientData = async () => {
+      if (!isEditMode || !id_card) return;
+
+      setLoading(true);
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('ไม่พบ token การล็อกอิน');
+        }
+
+        const response = await fetch(`http://localhost:5000/api/patients/${id_card}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('ไม่สามารถดึงข้อมูลผู้ป่วยได้');
+        }
+
+        const data = await response.json();
+
+        // Parse allergy_details จาก JSON string
+        let allergyDetails: { drug?: string; food?: string } = { drug: '', food: '' };
+        try {
+          if (data.allergy_details) {
+            if (typeof data.allergy_details === 'string') {
+              try {
+                allergyDetails = JSON.parse(data.allergy_details);
+                if (typeof allergyDetails !== 'object' || allergyDetails === null) {
+                  throw new Error('allergy_details ไม่ใช่อ็อบเจ็กต์');
+                }
+              } catch (parseError) {
+                console.warn('Invalid JSON in allergy_details, treating as food allergy:', data.allergy_details);
+                allergyDetails = { drug: '', food: data.allergy_details.trim() };
+              }
+            } else {
+              allergyDetails = data.allergy_details;
+            }
+          }
+        } catch (e) {
+          console.error('Error processing allergy_details:', e);
+          allergyDetails = { drug: '', food: data.allergy_details?.trim() || '' };
+        }
+
+        // เติมข้อมูลลงในฟอร์ม
+        setValue('id_card', data.id_card?.toString() || id_card);
+        setValue('name', data.name?.trim() || '');
+        setValue('age', data.age || 0);
+        setValue('weight', data.weight || 0);
+        setValue('height', data.height || 0);
+        setValue('symptoms', data.symptoms?.trim() || '');
+        setValue('allergy', data.allergy ? 'แพ้' : 'ไม่แพ้');
+        setValue('allergy_details_drug', allergyDetails.drug?.trim() || '');
+        setValue('allergy_details_food', allergyDetails.food?.trim() || '');
+        setValue('admissionDate', data.admission_date ? format(new Date(data.admission_date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
+        setValue('chronicDiseases', data.chronic_diseases?.trim() || '');
+        setValue('medications', data.medications?.trim() || '');
+        setValue('surgeryHistory', data.surgery_history?.trim() || '');
+        setValue('emergencyContact', data.emergency_contact?.trim() || '');
+        setValue('bloodType', data.blood_type || undefined);
+        setValue('gender', data.gender || undefined);
+        setValue('nationality', data.nationality?.trim() || '');
+        setAllergyValue(data.allergy ? 'แพ้' : 'ไม่แพ้');
+        setShowAllergyDetails(data.allergy);
+        setError(null);
+      } catch (error) {
+        console.error('Error fetching patient data:', error);
+        setError(`เกิดข้อผิดพลาดในการดึงข้อมูลผู้ป่วย: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPatientData();
+  }, [id_card, isEditMode, setValue]);
 
   // จัดการกล้องและ WebSocket สำหรับการตรวจจับภาษามือ
   useEffect(() => {
@@ -662,22 +765,18 @@ export default function PatientHistoryForm() {
         const color = labelColors[prediction.label] || getRandomColor();
         const [x1, y1, x2, y2] = prediction.bbox;
 
-        // วาดกรอบล้อม
         context.strokeStyle = color;
         context.strokeRect(x1, y1, x2 - x1, y2 - y1);
 
-        // วาดข้อความพร้อมพื้นหลังกึ่งโปร่งใส
         const labelText = `${getLabelTranslations(model)[prediction.label] || prediction.label}: ${(prediction.confidence * 100).toFixed(1)}%`;
         const textWidth = context.measureText(labelText).width;
         const textHeight = 16;
         const textX = x1 + 5;
         const textY = y1 > 20 ? y1 - 5 : y1 + 20;
 
-        // วาดพื้นหลังกึ่งโปร่งใสสำหรับข้อความ
         context.fillStyle = 'rgba(0, 0, 0, 0.7)';
         context.fillRect(textX - 2, textY - textHeight, textWidth + 4, textHeight + 4);
 
-        // วาดข้อความ
         context.fillStyle = color;
         context.fillText(labelText, textX, textY);
       });
@@ -699,64 +798,141 @@ export default function PatientHistoryForm() {
     setIsCameraOn((prevState) => !prevState);
   };
 
-  // อัปเดตการส่งข้อมูล
+  // การส่งข้อมูล
   const onSubmitHandler = async (data: PatientForm) => {
     try {
-      const payload = {
-        id_card: data.id_card,
-        name: data.name,
-        age: data.age,
-        weight: data.weight,
-        height: data.height,
-        symptoms: data.symptoms,
-        allergy: data.allergy === 'แพ้' ? true : data.allergy === 'ไม่แพ้' ? false : false,
-        allergydetails: data.allergydetails || '',
-        admissionDate: data.admissionDate,
-        chronicDisease: data.chronicDiseases || '',
-        medications: data.medications || '',
-        surgeryHistory: data.surgeryHistory || '',
-        emergencyContact: data.emergencyContact || '',
-        bloodType: data.bloodType || '',
-        gender: data.gender || '',
-        nurseName: data.nurseName,
-        nationality: data.nationality || '',
+      // ตรวจสอบฟิลด์ที่จำเป็น
+      if (!data.name.trim()) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'กรุณากรอกชื่อ-นามสกุล',
+          showConfirmButton: true,
+        });
+        return;
+      }
+      if (data.age <= 0) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'กรุณาเลือกอายุที่ถูกต้อง',
+          showConfirmButton: true,
+        });
+        return;
+      }
+      if (data.allergy === '') {
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'กรุณาเลือกสถานะอาการแพ้ (แพ้/ไม่แพ้)',
+          showConfirmButton: true,
+        });
+        return;
+      }
+
+      // รวม allergy_details_drug และ allergy_details_food เป็น JSON string
+      const allergyDetails = {
+        drug: data.allergy_details_drug?.trim() || '',
+        food: data.allergy_details_food?.trim() || '',
       };
 
-      const response = await fetch('http://localhost:5000/api/patients', {
-        method: 'POST',
+      // สร้าง payload โดยแก้ไข key ให้ตรงกับ backend
+      const payload = {
+        id_card: data.id_card,
+        name: data.name.trim(),
+        age: data.age,
+        weight: data.weight || 0,
+        height: data.height || 0,
+        symptoms: data.symptoms?.trim() || '',
+        allergy: data.allergy === 'แพ้',
+        allergy_details: JSON.stringify(allergyDetails),
+        admission_date: data.admissionDate,
+        chronic_diseases: data.chronicDiseases?.trim() || '',
+        medications: data.medications?.trim() || '',
+        surgery_history: data.surgeryHistory?.trim() || '',
+        emergency_contact: data.emergencyContact?.trim() || '',
+        blood_type: data.bloodType || '',
+        gender: data.gender || '',
+        nurse_name: data.nurseName.trim(),
+        nationality: data.nationality?.trim() || '',
+      };
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'ไม่พบ token การล็อกอิน กรุณาล็อกอินใหม่',
+          showConfirmButton: true,
+        });
+        router.push('/login');
+        return;
+      }
+
+      const url = isEditMode
+        ? `http://localhost:5000/api/patients/${data.id_card}`
+        : 'http://localhost:5000/api/patients';
+      const method = isEditMode ? 'PUT' : 'POST';
+
+      console.log('Sending request:', { url, method, payload });
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
 
-      const result = await response.json();
+      let result;
+      try {
+        result = await response.json();
+        console.log('API Response:', result);
+      } catch (error) {
+        console.error('Failed to parse response as JSON:', error);
+        throw new Error(`เซิร์ฟเวอร์ส่ง response ที่ไม่ใช่ JSON (รหัส: ${response.status})`);
+      }
+
       if (response.ok) {
         await Swal.fire({
           icon: 'success',
           title: 'สำเร็จ!',
-          text: 'บันทึกข้อมูลสำเร็จ',
+          text: isEditMode ? 'อัปเดตข้อมูลสำเร็จ' : 'บันทึกข้อมูลสำเร็จ',
           showConfirmButton: false,
           timer: 1500,
         });
         reset();
         setAllergyValue('');
         setShowAllergyDetails(false);
+        router.push('/Signlanguage/Patient');
       } else {
+        let errorMessage = result.message || result.error || `ไม่สามารถ${isEditMode ? 'อัปเดต' : 'บันทึก'}ข้อมูลได้`;
+        if (response.status === 400) {
+          errorMessage = 'ข้อมูลที่ส่งไม่ถูกต้อง กรุณาตรวจสอบข้อมูล';
+        } else if (response.status === 401) {
+          errorMessage = 'การยืนยันตัวตนล้มเหลว กรุณาล็อกอินใหม่';
+          router.push('/login');
+        } else if (response.status === 404) {
+          errorMessage = 'ไม่พบผู้ป่วยที่มีเลขบัตรประชาชนนี้';
+        } else if (response.status === 405) {
+          errorMessage = 'เซิร์ฟเวอร์ไม่รองรับการอัปเดตข้อมูลในขณะนี้';
+        } else if (response.status === 500) {
+          errorMessage = 'เกิดข้อผิดพลาดในเซิร์ฟเวอร์ กรุณาลองใหม่ภายหลัง';
+        }
         await Swal.fire({
           icon: 'error',
           title: 'เกิดข้อผิดพลาด',
-          text: result.message || 'ไม่สามารถบันทึกข้อมูลได้',
+          text: `${errorMessage} (รหัส: ${response.status})`,
           showConfirmButton: true,
         });
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Submit Error:', error);
       await Swal.fire({
         icon: 'error',
         title: 'เกิดข้อผิดพลาด',
-        text: 'ไม่สามารถส่งข้อมูลได้',
+        text: `ไม่สามารถ${isEditMode ? 'อัปเดต' : 'บันทึก'}ข้อมูลได้: ${error instanceof Error ? error.message : 'Unknown error'}`,
         showConfirmButton: true,
       });
     }
@@ -769,7 +945,8 @@ export default function PatientHistoryForm() {
       setShowAllergyDetails(true);
     } else {
       setShowAllergyDetails(false);
-      setValue('allergydetails', '');
+      setValue('allergy_details_drug', '');
+      setValue('allergy_details_food', '');
     }
   };
 
@@ -788,6 +965,9 @@ export default function PatientHistoryForm() {
   const handleVideoSelect = (videoURL: string) => {
     setSelectedVideo(videoURL);
   };
+
+  if (loading) return <div className="p-8 text-lg">กำลังโหลดข้อมูลผู้ป่วย...</div>;
+  if (error) return <div className="p-8 text-red-500">{error}</div>;
 
   return (
     <div
@@ -810,7 +990,7 @@ export default function PatientHistoryForm() {
           </button>
 
           <h2 className='text-lg font-semibold mb-3 text-black border-b border-gray-300 pb-1'>
-            ซักประวัติผู้ป่วย
+            {isEditMode ? 'แก้ไขประวัติผู้ป่วย' : 'ซักประวัติผู้ป่วย'}
           </h2>
 
           <NurseInfo nurseName={nurseName} />
@@ -820,21 +1000,39 @@ export default function PatientHistoryForm() {
             <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
               <div className='flex items-center space-x-2'>
                 <label className='font-medium text-black w-24'>บัตรประชาชน</label>
-                <Input
-                  {...register('id_card', {
-                    required: 'กรุณากรอกเลขบัตรประชาชน',
-                    pattern: {
-                      value: /^\d{13}$/,
-                      message: 'เลขบัตรประชาชนต้องมี 13 หลัก',
-                    },
-                  })}
-                  placeholder='กรอกเลขบัตรประชาชน'
-                />
+                <div className='w-full'>
+                  <Input
+                    {...register('id_card', {
+                      required: 'กรุณากรอกเลขบัตรประชาชน',
+                      pattern: {
+                        value: /^\d{13}$/,
+                        message: 'เลขบัตรประชาชนต้องมี 13 หลัก',
+                      },
+                    })}
+                    placeholder='กรอกเลขบัตรประชาชน'
+                    readOnly={isEditMode}
+                    className={isEditMode ? 'bg-gray-200 cursor-not-allowed' : ''}
+                  />
+                  {errors.id_card && (
+                    <p className='text-red-500 text-xs mt-1'>{errors.id_card.message}</p>
+                  )}
+                </div>
               </div>
 
               <div className='flex items-center space-x-2'>
                 <label className='font-medium text-black w-24'>ชื่อ-นามสกุล</label>
-                <Input {...register('name')} placeholder='กรอกชื่อ-นามสกุล' />
+                <div className='w-full'>
+                  <Input
+                    {...register('name', {
+                      required: 'กรุณากรอกชื่อ-นามสกุล',
+                      validate: (value) => value.trim() !== '' || 'ชื่อ-นามสกุลต้องไม่ว่าง',
+                    })}
+                    placeholder='กรอกชื่อ-นามสกุล'
+                  />
+                  {errors.name && (
+                    <p className='text-red-500 text-xs mt-1'>{errors.name.message}</p>
+                  )}
+                </div>
               </div>
 
               <div className='flex items-center space-x-2'>
@@ -854,8 +1052,12 @@ export default function PatientHistoryForm() {
                 <Controller
                   name='age'
                   control={control}
+                  rules={{
+                    validate: (value) => value > 0 || 'กรุณาเลือกอายุที่ถูกต้อง',
+                  }}
                   render={({ field }) => (
                     <Select {...field} onChange={(e) => field.onChange(parseInt(e.target.value))}>
+                      <option value={0}>เลือกอายุ</option>
                       {[...Array(100).keys()].map((n) => (
                         <option key={n} value={n + 1}>
                           {n + 1} ปี
@@ -864,6 +1066,9 @@ export default function PatientHistoryForm() {
                     </Select>
                   )}
                 />
+                {errors.age && (
+                  <p className='text-red-500 text-xs mt-1'>{errors.age.message}</p>
+                )}
               </div>
 
               <div className='flex items-center space-x-2'>
@@ -926,10 +1131,22 @@ export default function PatientHistoryForm() {
               </div>
 
               {showAllergyDetails && (
-                <div className='flex items-center space-x-2'>
-                  <label className='font-medium text-black w-24'>โปรดระบุ</label>
-                  <Input {...register('allergydetails')} placeholder='กรอกสิ่งที่แพ้' />
-                </div>
+                <>
+                  <div className='flex items-center space-x-2'>
+                    <label className='font-medium text-black w-24'>แพ้ยา</label>
+                    <Input
+                      {...register('allergy_details_drug')}
+                      placeholder='ระบุยาที่แพ้'
+                    />
+                  </div>
+                  <div className='flex items-center space-x-2'>
+                    <label className='font-medium text-black w-24'>แพ้อาหาร</label>
+                    <Input
+                      {...register('allergy_details_food')}
+                      placeholder='ระบุอาหารที่แพ้'
+                    />
+                  </div>
+                </>
               )}
 
               <div className='flex items-center space-x-2'>
@@ -959,7 +1176,7 @@ export default function PatientHistoryForm() {
 
               <div className='mt-4'>
                 <Button type='submit' className='bg-blue-600 hover:bg-blue-700'>
-                  บันทึกข้อมูล
+                  {isEditMode ? 'อัปเดตข้อมูล' : 'บันทึกข้อมูล'}
                 </Button>
                 <Button
                   type='button'
@@ -1044,12 +1261,12 @@ export default function PatientHistoryForm() {
                   </thead>
                   <tbody>
                     {Object.entries(allLabels)
-                      .sort(([, confidenceA], [, confidenceB]) => confidenceB - confidenceA) // จัดเรียงตามความมั่นใจจากมากไปน้อย
+                      .sort(([, confidenceA], [, confidenceB]) => confidenceB - confidenceA)
                       .map(([label, confidence], index) => (
                         <tr
                           key={label}
                           className='border-b'
-                          style={index === 0 ? { backgroundColor: `${labelColors[label]}20` } : {}} // เพิ่มสีพื้นหลังสำหรับแถวแรก
+                          style={index === 0 ? { backgroundColor: `${labelColors[label]}20` } : {}}
                         >
                           <td
                             className='px-3 py-2'

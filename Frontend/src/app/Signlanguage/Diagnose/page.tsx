@@ -128,8 +128,7 @@ export default function DoctorDashboard() {
         throw new Error('รหัสบัตรประชาชนไม่ถูกต้องหรือไม่พบ');
       }
 
-      console.log('Fetching patient with id_card:', id_card);
-      const response = await fetch(`http://127.0.0.1:5000/api/patients/${id_card}`, {
+      const response = await fetch('http://127.0.0.1:5000/api/patients', {
         headers: {
           'Content-Type': 'application/json',
         },

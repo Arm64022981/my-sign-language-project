@@ -79,17 +79,18 @@ def login():
         print(f"Error during login: {e}")
         return jsonify({'error': str(e)}), 500
     
-#เพิ่มข้อมูลผู้ป่วย
+# เพิ่มข้อมูลผู้ป่วย
 @app.route('/api/patients', methods=['POST'])
+@jwt_required()
 def add_patient():
-    data = request.json
+    data = request.get_json()
     print("DATA RECEIVED:", data)
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
     try:
-        admission_date = datetime.strptime(data['admissionDate'], '%Y-%m-%d').date()
+        admission_date = datetime.strptime(data['admission_date'], '%Y-%m-%d').date() if data.get('admission_date') else None
 
         # Convert allergy to boolean
         allergy = data.get('allergy')
@@ -129,16 +130,16 @@ def add_patient():
             data['height'],
             data['symptoms'],
             allergy,
-            data.get('allergydetails', ''),
+            data.get('allergy_details', ''),
             admission_date,
-            data.get('chronicDiseases', ''),
+            data.get('chronic_diseases', ''),
             data.get('medications', ''),
-            data.get('surgeryHistory', ''),
-            data.get('emergencyContact', ''),
-            data.get('bloodType', ''),
+            data.get('surgery_history', ''),
+            data.get('emergency_contact', ''),
+            data.get('blood_type', ''),
             data.get('gender', ''),
-            data.get('nurseName', '16'),
-            data.get('nationality', '17')
+            data.get('nurse_name', ''),
+            data.get('nationality', '')
         ))
 
         conn.commit()
@@ -150,7 +151,14 @@ def add_patient():
     except Exception as e:
         print("ERROR:", str(e))
         traceback.print_exc()
+        if conn:
+            conn.rollback()
         return jsonify({"message": f"เกิดข้อผิดพลาด: {str(e)}"}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # การดึงข้อมูลผู้ป่วย
 @app.route('/api/patients', methods=['GET'])
@@ -383,14 +391,20 @@ def update_profile():
 from flask import jsonify
 import traceback
 
+# ดึงข้อมูลผู้ป่วย
 @app.route('/api/patients/<string:id_card>', methods=['GET'])
+@jwt_required()
 def get_patient(id_card):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # ดึงข้อมูลผู้ป่วยด้วย id_card (แก้ allergydetails เป็น allergy_details)
-        cursor.execute("SELECT id, id_card, name, age, weight, height, symptoms, allergy, allergy_details, admission_date, chronic_diseases, medications, surgery_history, emergency_contact, blood_type, gender, nurse_name, nationality FROM patients WHERE id_card = %s", (id_card,))
+        cursor.execute("""
+            SELECT id, id_card, name, age, weight, height, symptoms, allergy, allergy_details,
+                   admission_date, chronic_diseases, medications, surgery_history,
+                   emergency_contact, blood_type, gender, nurse_name, nationality
+            FROM patients WHERE id_card = %s
+        """, (id_card,))
         row = cursor.fetchone()
 
         if not row:
@@ -398,39 +412,35 @@ def get_patient(id_card):
             conn.close()
             return jsonify({"message": "ไม่พบผู้ป่วย"}), 404
 
-        # เตรียมข้อมูลผู้ป่วย
         patient = {
             "id": str(row[0]),
+            "id_card": row[1],
             "name": row[2],
             "age": row[3],
             "weight": row[4],
             "height": row[5],
             "symptoms": row[6],
             "allergy": row[7],
-            "admission_date": str(row[9]),  
+            "allergy_details": row[8],
+            "admission_date": str(row[9]) if row[9] else None,
             "chronic_diseases": row[10],
             "medications": row[11],
             "surgery_history": row[12],
             "emergency_contact": row[13],
             "blood_type": row[14],
             "gender": row[15],
-            "allergydetails": row[8],  # คอลัมน์นี้เป็น allergy_details (index 8)
             "nurse_name": row[16],
-            "nationality": row[17],
+            "nationality": row[17]
         }
 
-        # ใช้ id_card เพื่อตรวจสอบการวินิจฉัยล่าสุด
-        id_card_value = str(id_card)
-        print(f"DEBUG: id_card = {id_card_value}")
         cursor.execute("""
             SELECT patient_id, main_symptom, preliminary_diagnosis, treatment_plan, appointment, doctor_name, created_at
             FROM diagnoses
             WHERE patient_id = %s
             ORDER BY created_at DESC
             LIMIT 1
-        """, (id_card_value,))
+        """, (id_card,))
         diagnosis = cursor.fetchone()
-        print(f"DEBUG: diagnosis = {diagnosis}")
 
         if diagnosis:
             patient["diagnosis"] = {
@@ -561,44 +571,112 @@ def save_diagnosis():
             conn.close()
             
             
-# @app.route('/api/patients/<string:id_card>', methods=['PUT'])
-# def update_patient(id_card):
-#     data = request.get_json()
+# อัปเดตข้อมูลผู้ป่วย
+@app.route('/api/patients/<string:id_card>', methods=['PUT'])
+@jwt_required()
+def update_patient(id_card):
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "ไม่มีข้อมูลใน request"}), 400
 
-#     # กำหนดฟิลด์ที่จำเป็นต้องมี
-#     required_fields = ['name', 'gender', 'age', 'nationality', 'height', 'weight']
-#     if not all(field in data for field in required_fields):
-#         return jsonify({'error': 'Missing fields in request'}), 400
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-#     conn = get_db_connection()
-#     cursor = conn.cursor()
+        # ตรวจสอบว่ามีผู้ป่วยในระบบหรือไม่
+        cursor.execute("SELECT id FROM patients WHERE id_card = %s", (id_card,))
+        patient = cursor.fetchone()
+        if not patient:
+            cursor.close()
+            conn.close()
+            return jsonify({"error": "ไม่พบผู้ป่วยที่มีเลขบัตรประชาชนนี้"}), 404
 
-#     # ค้นหาผู้ป่วยด้วย id_card
-#     cursor.execute('SELECT * FROM patients WHERE id_card = %s', (id_card,))
-#     patient = cursor.fetchone()
+        # แปลง admission_date
+        admission_date = None
+        if data.get('admission_date'):
+            try:
+                admission_date = datetime.strptime(data['admission_date'], '%Y-%m-%d').date()
+            except ValueError:
+                cursor.close()
+                conn.close()
+                return jsonify({"error": "รูปแบบวันที่ไม่ถูกต้อง ต้องเป็น YYYY-MM-DD"}), 400
 
-#     if not patient:
-#         conn.close()
-#         return jsonify({'error': 'Patient not found'}), 404
+        # แปลง allergy เป็น boolean
+        allergy = data.get('allergy')
+        if isinstance(allergy, str):
+            allergy = allergy.lower() == 'true'
 
-#     # อัปเดตข้อมูลผู้ป่วยในฐานข้อมูล
-#     cursor.execute('''
-#         UPDATE patients
-#         SET name = %s, gender = %s, age = %s, nationality = %s, height = %s, weight = %s
-#         WHERE id_card = %s
-#     ''', (
-#         data['name'], data['gender'], data['age'],
-#         data['nationality'], data['height'], data['weight'], id_card
-#     ))
+        # อัปเดตข้อมูลในตาราง patients
+        query = """
+            UPDATE patients
+            SET
+                name = %s,
+                age = %s,
+                weight = %s,
+                height = %s,
+                symptoms = %s,
+                allergy = %s,
+                allergy_details = %s,
+                admission_date = %s,
+                chronic_diseases = %s,
+                medications = %s,
+                surgery_history = %s,
+                emergency_contact = %s,
+                blood_type = %s,
+                gender = %s,
+                nurse_name = %s,
+                nationality = %s
+            WHERE id_card = %s
+        """
+        values = (
+            data.get('name', ''),
+            data.get('age', 0),
+            data.get('weight', 0),
+            data.get('height', 0),
+            data.get('symptoms', ''),
+            allergy,
+            data.get('allergy_details', ''),
+            admission_date,
+            data.get('chronic_diseases', ''),
+            data.get('medications', ''),
+            data.get('surgery_history', ''),
+            data.get('emergency_contact', ''),
+            data.get('blood_type', ''),
+            data.get('gender', ''),
+            data.get('nurse_name', ''),
+            data.get('nationality', ''),
+            id_card
+        )
 
-#     conn.commit()
-#     conn.close()
+        cursor.execute(query, values)
+        conn.commit()
 
-#     return jsonify({'message': 'Patient updated successfully'}), 200
+        if cursor.rowcount == 0:
+            cursor.close()
+            conn.close()
+            return jsonify({"error": "ไม่สามารถอัปเดตข้อมูลได้"}), 500
 
+        cursor.close()
+        conn.close()
+        return jsonify({"message": "อัปเดตข้อมูลผู้ป่วยสำเร็จ"}), 200
 
-# # (Removed duplicate and incorrect update_patient route handler)
-
+    except psycopg2.Error as e:
+        print(f"Database error: {e}")
+        traceback.print_exc()
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"เกิดข้อผิดพลาดในฐานข้อมูล: {str(e)}"}), 500
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        traceback.print_exc()
+        if conn:
+            conn.rollback()
+        return jsonify({"error": f"เกิดข้อผิดพลาด: {str(e)}"}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
     
 
 if __name__ == '__main__':

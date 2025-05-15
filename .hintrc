@@ -17,6 +17,18 @@
         "select-name": "off"
       }
     ],
-    "typescript-config/consistent-casing": "off"
+    "typescript-config/consistent-casing": "off",
+    "compat-api/css": [
+      "default",
+      {
+        "ignore": [
+          "background-color: color-mix(in srgb, #fff 50%, transparent)",
+          "background-color: color-mix(in srgb, #fff 80%, transparent)",
+          "background-color: color-mix(in srgb, #000 60%, transparent)",
+          "background-color: color-mix(in srgb, #000 50%, transparent)",
+          "-webkit-text-size-adjust"
+        ]
+      }
+    ]
   }
 }
