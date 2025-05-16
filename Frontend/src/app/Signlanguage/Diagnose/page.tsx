@@ -5,6 +5,16 @@ import { useForm } from 'react-hook-form';
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import Swal from 'sweetalert2';
 
+interface Diagnosis {
+  id: number;
+  main_symptom: string;
+  preliminary_diagnosis: string;
+  treatment_plan: string;
+  appointment?: string;
+  doctor_name: string;
+  created_at: string;
+}
+
 interface Patient {
   id: number;
   id_card: string;
@@ -14,8 +24,9 @@ interface Patient {
   height?: number;
   symptoms?: string;
   allergy?: string;
-  allergy_details?: string;
-  admissionDate?: string;
+  allergy_drug?: string;
+  allergy_food?: string;
+  admission_date?: string;
   chronic_diseases?: string;
   medications?: string;
   surgery_history?: string;
@@ -24,7 +35,7 @@ interface Patient {
   gender?: string;
   nurse_name?: string;
   nationality?: string;
-  diagnosis?: any;
+  diagnosis?: Diagnosis[];
 }
 
 interface DiagnosisForm {
@@ -58,6 +69,7 @@ export default function DoctorDashboard() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'diagnosed'>('all');
   const [formMessage, setFormMessage] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const { register, handleSubmit, reset } = useForm<DiagnosisForm>({
@@ -70,6 +82,15 @@ export default function DoctorDashboard() {
     },
   });
 
+  // ตรวจสอบ token และ redirect ถ้าไม่มี
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.location.href = '/login';
+    }
+  }, []);
+
+  // ดึงรายชื่อผู้ป่วยทั้งหมด
   useEffect(() => {
     const fetchPatients = async () => {
       try {
@@ -83,7 +104,7 @@ export default function DoctorDashboard() {
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `ไม่สามารถดึงข้อมูลผู้ป่วยได้ (สถานะ: ${response.status})`);
+          throw new Error(errorData.error || `ไม่สามารถดึงข้อมูลผู้ป่วยได้ (สถานะ: ${response.status})`);
         }
 
         const data = await response.json();
@@ -94,12 +115,13 @@ export default function DoctorDashboard() {
           id_card: item.id_card || '',
           name: item.name || 'ไม่ระบุ',
           age: item.age || 0,
-          weight: item.weight ? parseFloat(item.weight) : 0,
-          height: item.height ? parseFloat(item.height) : 0,
+          weight: item.weight ? parseFloat(item.weight) : undefined,
+          height: item.height ? parseFloat(item.height) : undefined,
           symptoms: item.symptoms || '',
           allergy: item.allergy || '',
-          allergy_details: item.allergy_details || '',
-          admissionDate: item.admission_date || '',
+          allergy_drug: item.allergy_drug || '',
+          allergy_food: item.allergy_food || '',
+          admission_date: item.admission_date || '',
           chronic_diseases: item.chronic_diseases || '',
           medications: item.medications || '',
           surgery_history: item.surgery_history || '',
@@ -108,7 +130,7 @@ export default function DoctorDashboard() {
           gender: item.gender || '',
           nurse_name: item.nurse_name || '',
           nationality: item.nationality || 'ไม่ระบุ',
-          diagnosis: item.diagnosis || undefined,
+          diagnosis: item.diagnosis || [],
         }));
         setPatients(mappedPatients);
       } catch (error: any) {
@@ -121,79 +143,108 @@ export default function DoctorDashboard() {
     fetchPatients();
   }, []);
 
+  // ดึงข้อมูลผู้ป่วยตาม id_card
   const fetchPatientById = async (id_card: string) => {
     try {
+      setDetailLoading(true);
       setDetailError(null);
       if (!id_card) {
         throw new Error('รหัสบัตรประชาชนไม่ถูกต้องหรือไม่พบ');
       }
 
-      const response = await fetch('http://127.0.0.1:5000/api/patients', {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        window.location.href = '/login';
+        throw new Error('ไม่พบ JWT token กรุณา login อีกครั้ง');
+      }
+
+      const response = await fetch(`http://127.0.0.1:5000/api/patients/${id_card}`, {
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `ไม่สามารถดึงข้อมูลผู้ป่วยได้ (สถานะ: ${response.status})`);
+        if (response.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+          throw new Error('เซสชันหมดอายุ กรุณา login ใหม่');
+        }
+        throw new Error(
+          errorData.message || `ไม่สามารถดึงข้อมูลผู้ป่วยได้ (สถานะ: ${response.status})`
+        );
       }
 
       const data = await response.json();
       console.log('fetchPatientById response:', data);
 
+      const patientData = Array.isArray(data) ? data[0] : data;
+
       const mappedPatient: Patient = {
-        id: data.id || 0,
-        id_card: data.id_card || '',
-        name: data.name || 'ไม่ระบุ',
-        age: data.age || 0,
-        weight: data.weight ? parseFloat(data.weight) : 0,
-        height: data.height ? parseFloat(data.height) : 0,
-        symptoms: data.symptoms || '',
-        allergy: data.allergy || '',
-        allergy_details: data.allergy_details || '',
-        admissionDate: data.admission_date || '',
-        chronic_diseases: data.chronic_diseases || '',
-        medications: data.medications || '',
-        surgery_history: data.surgery_history || '',
-        emergency_contact: data.emergency_contact || '',
-        blood_type: data.blood_type || '',
-        gender: data.gender || '',
-        nurse_name: data.nurse_name || '',
-        nationality: data.nationality || 'ไม่ระบุ',
-        diagnosis: data.diagnosis || undefined,
+        id: patientData.id ? parseInt(patientData.id) : 0,
+        id_card: patientData.id_card || '',
+        name: patientData.name || 'ไม่ระบุ',
+        age: patientData.age ? parseInt(patientData.age) : 0,
+        weight: patientData.weight ? parseFloat(patientData.weight) : undefined,
+        height: patientData.height ? parseFloat(patientData.height) : undefined,
+        symptoms: patientData.symptoms || '',
+        allergy: patientData.allergy ? String(patientData.allergy) : '',
+        allergy_drug: patientData.allergy_drug || '',
+        allergy_food: patientData.allergy_food || '',
+        admission_date: patientData.admission_date || '',
+        chronic_diseases: patientData.chronic_diseases || '',
+        medications: patientData.medications || '',
+        surgery_history: patientData.surgery_history || '',
+        emergency_contact: patientData.emergency_contact || '',
+        blood_type: patientData.blood_type || '',
+        gender: patientData.gender || '',
+        nurse_name: patientData.nurse_name || '',
+        nationality: patientData.nationality || 'ไม่ระบุ',
+        diagnosis: patientData.diagnosis || [],
       };
       setSelectedPatient(mappedPatient);
     } catch (error: any) {
       console.error('fetchPatientById error:', error);
       setDetailError(error.message || 'เกิดข้อผิดพลาดในการดึงข้อมูลผู้ป่วย');
+    } finally {
+      setDetailLoading(false);
     }
   };
 
+  // บันทึกการวินิจฉัย
   const onSubmitDiagnosis = async (data: DiagnosisForm) => {
     if (!selectedPatient) {
       setFormMessage('กรุณาเลือกผู้ป่วยก่อนบันทึกการวินิจฉัย');
       return;
     }
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        window.location.href = '/login';
+        throw new Error('ไม่พบ JWT token กรุณา login อีกครั้ง');
+      }
+
       const response = await fetch('http://127.0.0.1:5000/api/diagnosis', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
-          patientId: selectedPatient.id,
+          patientId: selectedPatient.id_card,
           mainSymptom: data.mainSymptom,
           preliminaryDiagnosis: data.preliminaryDiagnosis,
           treatmentPlan: data.treatmentPlan,
-          appointment: data.appointment,
+          appointment: data.appointment || null,
           doctorName: data.doctorName,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `ไม่สามารถบันทึกการวินิจฉัยได้ (สถานะ: ${response.status})`);
+        throw new Error(errorData.error || `ไม่สามารถบันทึกการวินิจฉัยได้ (สถานะ: ${response.status})`);
       }
 
       await Swal.fire({
@@ -205,6 +256,7 @@ export default function DoctorDashboard() {
       });
       setFormMessage('บันทึกการวินิจฉัยสำเร็จ!');
       reset();
+      await fetchPatientById(selectedPatient.id_card);
       setTimeout(() => {
         setFormMessage('');
       }, 3000);
@@ -214,31 +266,37 @@ export default function DoctorDashboard() {
     }
   };
 
+  // กรองผู้ป่วยตามการค้นหาและสถานะ
   const filteredPatients = patients.filter((patient) => {
     const matchesSearch =
       patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       patient.age.toString().includes(searchQuery);
     const matchesStatus =
       filterStatus === 'all' ||
-      (filterStatus === 'pending' && !patient.diagnosis) ||
-      (filterStatus === 'diagnosed' && patient.diagnosis);
+      (filterStatus === 'pending' && (!patient.diagnosis || patient.diagnosis.length === 0)) ||
+      (filterStatus === 'diagnosed' && patient.diagnosis && patient.diagnosis.length > 0);
     return matchesSearch && matchesStatus;
   });
 
   if (loading) {
-    return <div className="p-8 text-gray-600 text-center">กำลังโหลดข้อมูล...</div>;
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
+        <span className="ml-3 text-gray-600 text-lg">กำลังโหลดข้อมูล...</span>
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 px-6 pt-24">
       <div className="max-w-7xl mx-auto">
         {error && (
-          <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
-            {error}
+          <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg shadow-md">
+            <span className="font-medium">ข้อผิดพลาด:</span> {error}
           </div>
         )}
         <div className="mb-6">
-          <h1 className="text-2xl text-gray-600">จัดการข้อมูลผู้ป่วยและบันทึกการวินิจฉัย</h1>
+          <h1 className="text-3xl font-semibold text-gray-800">จัดการข้อมูลผู้ป่วยและบันทึกการวินิจฉัย</h1>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -252,7 +310,7 @@ export default function DoctorDashboard() {
             />
           </div>
           <select
-            className="p-2 border border-gray-300 rounded-md bg-white text-sm text-black"
+            className="p-2 border border-gray-300 rounded-md bg-white text-sm text-black focus:ring-2 focus:ring-blue-500"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as 'all' | 'pending' | 'diagnosed')}
           >
@@ -280,8 +338,32 @@ export default function DoctorDashboard() {
               </thead>
               <tbody>
                 {filteredPatients.map((patient) => (
-                  // prettier-ignore
-                  <tr key={patient.id} className={`border-b hover:bg-blue-50 ${patient.id_card ? 'cursor-pointer' : 'cursor-not-allowed'}`} onClick={() => patient.id_card && fetchPatientById(patient.id_card)} title={patient.id_card ? '' : 'ไม่มีรหัสบัตรประชาชน'}><td className="p-4 text-black">{patient.name}</td><td className="p-4 text-black">{patient.age} ปี</td><td className="p-4 text-black">{patient.gender || '-'}</td><td className="p-4 text-black">{patient.nationality || '-'}</td><td className="p-4 text-black"><span className={`px-2 py-1 rounded-full text-xs text-black ${patient.diagnosis ? 'bg-green-100' : 'bg-yellow-100'}`}>{patient.diagnosis ? 'วินิจฉัยแล้ว' : 'รอวินิจฉัย'}</span></td></tr>
+                  <tr
+                    key={patient.id}
+                    className={`border-b hover:bg-blue-50 ${
+                      patient.id_card ? 'cursor-pointer' : 'cursor-not-allowed'
+                    }`}
+                    onClick={() => patient.id_card && fetchPatientById(patient.id_card)}
+                    title={patient.id_card ? '' : 'ไม่มีรหัสบัตรประชาชน'}
+                  >
+                    <td className="p-4 text-black">{patient.name}</td>
+                    <td className="p-4 text-black">{patient.age} ปี</td>
+                    <td className="p-4 text-black">{patient.gender || '-'}</td>
+                    <td className="p-4 text-black">{patient.nationality || '-'}</td>
+                    <td className="p-4 text-black">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs text-black ${
+                          patient.diagnosis && patient.diagnosis.length > 0
+                            ? 'bg-green-100'
+                            : 'bg-yellow-100'
+                        }`}
+                      >
+                        {patient.diagnosis && patient.diagnosis.length > 0
+                          ? 'วินิจฉัยแล้ว'
+                          : 'รอวินิจฉัย'}
+                      </span>
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>
@@ -289,14 +371,20 @@ export default function DoctorDashboard() {
         )}
 
         {detailError && (
-          <div className="mb-4 p-4 bg-red-100 text-red-700 rounded-lg">
-            {detailError}
+          <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg shadow-md">
+            <span className="font-medium">ข้อผิดพลาด:</span> {detailError}
           </div>
         )}
-        {selectedPatient && (
+        {detailLoading && (
+          <div className="flex justify-center items-center bg-white rounded-lg shadow-md p-6">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+            <span className="ml-3 text-gray-600">กำลังโหลดรายละเอียดผู้ป่วย...</span>
+          </div>
+        )}
+        {selectedPatient && !detailLoading && (
           <div className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-800">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold text-gray-800">
                 รายละเอียดผู้ป่วย: {selectedPatient.name}
               </h2>
               <button
@@ -307,12 +395,13 @@ export default function DoctorDashboard() {
               </button>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-8">
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">ข้อมูลส่วนตัว</h3>
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">ข้อมูลส่วนตัว</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">รหัสบัตรประชาชน:</span> {selectedPatient.id_card || '-'}
+                    <span className="font-medium">รหัสบัตรประชาชน:</span>{' '}
+                    {selectedPatient.id_card || '-'}
                   </p>
                   <p className="text-sm text-gray-600">
                     <span className="font-medium">ชื่อ-นามสกุล:</span> {selectedPatient.name}
@@ -327,62 +416,110 @@ export default function DoctorDashboard() {
                     <span className="font-medium">สัญชาติ:</span> {selectedPatient.nationality}
                   </p>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">น้ำหนัก:</span> {selectedPatient.weight ? `${selectedPatient.weight} กก.` : '-'}
+                    <span className="font-medium">น้ำหนัก:</span>{' '}
+                    {selectedPatient.weight ? `${selectedPatient.weight} กก.` : '-'}
                   </p>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">ส่วนสูง:</span> {selectedPatient.height ? `${selectedPatient.height} ซม.` : '-'}
+                    <span className="font-medium">ส่วนสูง:</span>{' '}
+                    {selectedPatient.height ? `${selectedPatient.height} ซม.` : '-'}
                   </p>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">กรุ๊ปเลือด:</span> {selectedPatient.blood_type || '-'}
+                    <span className="font-medium">กรุ๊ปเลือด:</span>{' '}
+                    {selectedPatient.blood_type || '-'}
                   </p>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">ข้อมูลทางการแพทย์</h3>
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">ข้อมูลทางการแพทย์</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <p className="text-sm text-gray-600">
                     <span className="font-medium">อาการ:</span> {selectedPatient.symptoms || '-'}
                   </p>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">วันที่เข้ารักษา:</span> {selectedPatient.admissionDate || '-'}
+                    <span className="font-medium">วันที่เข้ารักษา:</span>{' '}
+                    {selectedPatient.admission_date || '-'}
                   </p>
                   <p className="text-sm text-gray-600">
                     <span className="font-medium">การแพ้:</span> {selectedPatient.allergy || '-'}
                   </p>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">รายละเอียดการแพ้:</span> {selectedPatient.allergy_details || '-'}
+                    <span className="font-medium">แพ้ยา:</span>{' '}
+                    {selectedPatient.allergy_drug || '-'}
                   </p>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">โรคประจำตัว:</span> {selectedPatient.chronic_diseases || '-'}
+                    <span className="font-medium">แพ้อาหาร:</span>{' '}
+                    {selectedPatient.allergy_food || '-'}
                   </p>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">ยาที่ใช้:</span> {selectedPatient.medications || '-'}
+                    <span className="font-medium">โรคประจำตัว:</span>{' '}
+                    {selectedPatient.chronic_diseases || '-'}
                   </p>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">ประวัติการผ่าตัด:</span> {selectedPatient.surgery_history || '-'}
+                    <span className="font-medium">ยาที่ใช้:</span>{' '}
+                    {selectedPatient.medications || '-'}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <span className="font-medium">ประวัติการผ่าตัด:</span>{' '}
+                    {selectedPatient.surgery_history || '-'}
                   </p>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">ข้อมูลติดต่อและการดูแล</h3>
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">ข้อมูลติดต่อและการดูแล</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">ผู้ติดต่อฉุกเฉิน:</span> {selectedPatient.emergency_contact || '-'}
+                    <span className="font-medium">ผู้ติดต่อฉุกเฉิน:</span>{' '}
+                    {selectedPatient.emergency_contact || '-'}
                   </p>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium">พยาบาลผู้ดูแล:</span> {selectedPatient.nurse_name || '-'}
+                    <span className="font-medium">พยาบาลผู้ดูแล:</span>{' '}
+                    {selectedPatient.nurse_name || '-'}
                   </p>
                 </div>
               </div>
+
+              {selectedPatient.diagnosis && selectedPatient.diagnosis.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">ประวัติการวินิจฉัย</h3>
+                  <div className="space-y-4">
+                    {selectedPatient.diagnosis.map((diag) => (
+                      <div key={diag.id} className="border-l-4 border-blue-500 pl-4">
+                        <p className="text-sm text-gray-600">
+                          <span className="font-medium">อาการสำคัญ:</span> {diag.main_symptom}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          <span className="font-medium">วินิจฉัยเบื้องต้น:</span>{' '}
+                          {diag.preliminary_diagnosis}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          <span className="font-medium">แผนการรักษา:</span> {diag.treatment_plan}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          <span className="font-medium">นัดหมาย:</span>{' '}
+                          {diag.appointment || '-'}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          <span className="font-medium">แพทย์ผู้ตรวจ:</span> {diag.doctor_name}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          <span className="font-medium">วันที่บันทึก:</span> {diag.created_at}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            <form onSubmit={handleSubmit(onSubmitDiagnosis)} className="mt-6">
+            <form onSubmit={handleSubmit(onSubmitDiagnosis)} className="mt-8">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">บันทึกการวินิจฉัย</h3>
               {formMessage && (
                 <p
-                  className={`text-sm mb-4 ${formMessage.includes('สำเร็จ') ? 'text-green-600' : 'text-red-600'}`}
+                  className={`text-sm mb-4 ${
+                    formMessage.includes('สำเร็จ') ? 'text-green-600' : 'text-red-600'
+                  }`}
                 >
                   {formMessage}
                 </p>
@@ -390,7 +527,9 @@ export default function DoctorDashboard() {
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อ-นามสกุลผู้ป่วย</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      ชื่อ-นามสกุลผู้ป่วย
+                    </label>
                     <p className="text-sm text-gray-600">{selectedPatient.name}</p>
                   </div>
                   <div>
@@ -405,22 +544,39 @@ export default function DoctorDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">วินิจฉัยเบื้องต้น</label>
-                  <Input {...register('preliminaryDiagnosis')} placeholder="ระบุการวินิจฉัยเบื้องต้น" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    วินิจฉัยเบื้องต้น
+                  </label>
+                  <Input
+                    {...register('preliminaryDiagnosis')}
+                    placeholder="ระบุการวินิจฉัยเบื้องต้น"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">แผนการรักษา / ยาที่สั่ง</label>
-                  <Input {...register('treatmentPlan')} placeholder="ระบุแผนการรักษาและยาที่สั่ง" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    แผนการรักษา / ยาที่สั่ง
+                  </label>
+                  <Input
+                    {...register('treatmentPlan')}
+                    placeholder="ระบุแผนการรักษาและยาที่สั่ง"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">การนัดหมาย / คำแนะนำเพิ่มเติม</label>
-                  <Input {...register('appointment')} placeholder="ระบุการนัดหมายหรือคำแนะนำ" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    การนัดหมาย / คำแนะนำเพิ่มเติม
+                  </label>
+                  <Input
+                    {...register('appointment')}
+                    placeholder="ระบุการนัดหมายหรือคำแนะนำ"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อแพทย์ผู้ตรวจ</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    ชื่อแพทย์ผู้ตรวจ
+                  </label>
                   <Input {...register('doctorName')} placeholder="ระบุชื่อแพทย์" />
                 </div>
 

@@ -79,7 +79,7 @@ def login():
         print(f"Error during login: {e}")
         return jsonify({'error': str(e)}), 500
     
-# เพิ่มข้อมูลผู้ป่วย
+# Endpoint: เพิ่มข้อมูลผู้ป่วย
 @app.route('/api/patients', methods=['POST'])
 @jwt_required()
 def add_patient():
@@ -99,10 +99,10 @@ def add_patient():
 
         query = """
             INSERT INTO patients (
-                id_card, name, age, weight, height, symptoms, allergy, allergy_details,
+                id_card, name, age, weight, height, symptoms, allergy, allergy_drug, allergy_food,
                 admission_date, chronic_diseases, medications, surgery_history,
                 emergency_contact, blood_type, gender, nurse_name, nationality
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (id_card) DO UPDATE SET
                 name = EXCLUDED.name,
                 age = EXCLUDED.age,
@@ -110,7 +110,8 @@ def add_patient():
                 height = EXCLUDED.height,
                 symptoms = EXCLUDED.symptoms,
                 allergy = EXCLUDED.allergy,
-                allergy_details = EXCLUDED.allergy_details,
+                allergy_drug = EXCLUDED.allergy_drug,
+                allergy_food = EXCLUDED.allergy_food,
                 admission_date = EXCLUDED.admission_date,
                 chronic_diseases = EXCLUDED.chronic_diseases,
                 medications = EXCLUDED.medications,
@@ -130,7 +131,8 @@ def add_patient():
             data['height'],
             data['symptoms'],
             allergy,
-            data.get('allergy_details', ''),
+            data.get('allergy_drug', ''),
+            data.get('allergy_food', ''),
             admission_date,
             data.get('chronic_diseases', ''),
             data.get('medications', ''),
@@ -391,7 +393,7 @@ def update_profile():
 from flask import jsonify
 import traceback
 
-# ดึงข้อมูลผู้ป่วย
+# Endpoint: ดึงข้อมูลผู้ป่วย
 @app.route('/api/patients/<string:id_card>', methods=['GET'])
 @jwt_required()
 def get_patient(id_card):
@@ -400,7 +402,7 @@ def get_patient(id_card):
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT id, id_card, name, age, weight, height, symptoms, allergy, allergy_details,
+            SELECT id, id_card, name, age, weight, height, symptoms, allergy, allergy_drug, allergy_food,
                    admission_date, chronic_diseases, medications, surgery_history,
                    emergency_contact, blood_type, gender, nurse_name, nationality
             FROM patients WHERE id_card = %s
@@ -421,16 +423,17 @@ def get_patient(id_card):
             "height": row[5],
             "symptoms": row[6],
             "allergy": row[7],
-            "allergy_details": row[8],
-            "admission_date": str(row[9]) if row[9] else None,
-            "chronic_diseases": row[10],
-            "medications": row[11],
-            "surgery_history": row[12],
-            "emergency_contact": row[13],
-            "blood_type": row[14],
-            "gender": row[15],
-            "nurse_name": row[16],
-            "nationality": row[17]
+            "allergy_drug": row[8],
+            "allergy_food": row[9],
+            "admission_date": str(row[10]) if row[10] else None,
+            "chronic_diseases": row[11],
+            "medications": row[12],
+            "surgery_history": row[13],
+            "emergency_contact": row[14],
+            "blood_type": row[15],
+            "gender": row[16],
+            "nurse_name": row[17],
+            "nationality": row[18]
         }
 
         cursor.execute("""
@@ -571,7 +574,7 @@ def save_diagnosis():
             conn.close()
             
             
-# อัปเดตข้อมูลผู้ป่วย
+# Endpoint: อัปเดตข้อมูลผู้ป่วย
 @app.route('/api/patients/<string:id_card>', methods=['PUT'])
 @jwt_required()
 def update_patient(id_card):
@@ -579,6 +582,13 @@ def update_patient(id_card):
         data = request.get_json()
         if not data:
             return jsonify({"error": "ไม่มีข้อมูลใน request"}), 400
+
+        # Validate allergy data
+        allergy = data.get('allergy')
+        if isinstance(allergy, str):
+            allergy = allergy.lower() == 'true'
+        if allergy and not (data.get('allergy_drug') or data.get('allergy_food')):
+            return jsonify({"error": "กรุณาระบุแพ้ยาหรือแพ้อาหารอย่างน้อยหนึ่งรายการเมื่อเลือกแพ้"}), 400
 
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -601,11 +611,6 @@ def update_patient(id_card):
                 conn.close()
                 return jsonify({"error": "รูปแบบวันที่ไม่ถูกต้อง ต้องเป็น YYYY-MM-DD"}), 400
 
-        # แปลง allergy เป็น boolean
-        allergy = data.get('allergy')
-        if isinstance(allergy, str):
-            allergy = allergy.lower() == 'true'
-
         # อัปเดตข้อมูลในตาราง patients
         query = """
             UPDATE patients
@@ -616,7 +621,8 @@ def update_patient(id_card):
                 height = %s,
                 symptoms = %s,
                 allergy = %s,
-                allergy_details = %s,
+                allergy_drug = %s,
+                allergy_food = %s,
                 admission_date = %s,
                 chronic_diseases = %s,
                 medications = %s,
@@ -635,7 +641,8 @@ def update_patient(id_card):
             data.get('height', 0),
             data.get('symptoms', ''),
             allergy,
-            data.get('allergy_details', ''),
+            data.get('allergy_drug', ''),
+            data.get('allergy_food', ''),
             admission_date,
             data.get('chronic_diseases', ''),
             data.get('medications', ''),

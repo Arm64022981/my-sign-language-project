@@ -27,35 +27,19 @@ export default function PatientDetailsCard({ patient }: { patient: any }) {
     }
   };
 
-  // ฟังก์ชัน parse allergy_details
-  const parseAllergyDetails = (allergyDetails: string | null) => {
-    try {
-      if (!allergyDetails) return { drug: '-', food: '-' };
-      const parsed = JSON.parse(allergyDetails);
-      return {
-        drug: parsed.drug || '-',
-        food: parsed.food || '-',
-      };
-    } catch {
-      return { drug: '-', food: '-' };
-    }
-  };
-
   // ตรวจสอบว่า patient มีข้อมูลหรือไม่
   const hasPatientData = patient && Object.keys(patient).length > 0;
 
   // จัดการรหัสบัตรประชาชน
   const idCardValue = patient?.id_card || '-';
 
-  // Parse allergy_details
-  const allergyDetails = parseAllergyDetails(patient?.allergy_details);
-
   // ดีบักข้อมูล patient
   console.log('Patient data:', patient);
   console.log('Value of patient.id:', patient?.id);
   console.log('Value of patient.id_card:', patient?.id_card);
   console.log('Value of patient.diagnosis.patient_id:', patient?.diagnosis?.patient_id);
-  console.log('Allergy details:', allergyDetails);
+  console.log('Allergy drug:', patient?.allergy_drug);
+  console.log('Allergy food:', patient?.allergy_food);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-gray-100 p-8">
@@ -156,10 +140,10 @@ export default function PatientDetailsCard({ patient }: { patient: any }) {
                 {patient.allergy && (
                   <>
                     <li>
-                      <span className="font-medium">แพ้ยา:</span> {allergyDetails.drug}
+                      <span className="font-medium">แพ้ยา:</span> {patient.allergy_drug || '-'}
                     </li>
                     <li>
-                      <span className="font-medium">แพ้อาหาร:</span> {allergyDetails.food}
+                      <span className="font-medium">แพ้อาหาร:</span> {patient.allergy_food || '-'}
                     </li>
                   </>
                 )}
@@ -179,7 +163,7 @@ export default function PatientDetailsCard({ patient }: { patient: any }) {
             <div className="bg-white p-6 rounded-lg shadow-md md:col-span-3">
               <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
                 <FileText className="w-6 h-6 text-blue-500 mr-2" />
-                ข้อมูลการวินิจฉัย
+                ข้อมูลการวินิจฉ “‘
               </h2>
               {patient.diagnosis ? (
                 <ul className="space-y-3 text-gray-700">

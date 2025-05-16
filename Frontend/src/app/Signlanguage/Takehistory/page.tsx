@@ -382,8 +382,8 @@ type PatientForm = {
   height: number;
   symptoms: string;
   allergy: 'แพ้' | 'ไม่แพ้' | '';
-  allergy_details_drug?: string;
-  allergy_details_food?: string;
+  allergy_drug?: string;
+  allergy_food?: string;
   admissionDate: string;
   chronicDiseases?: string;
   medications?: string;
@@ -410,8 +410,8 @@ export default function PatientHistoryForm() {
       height: 0,
       symptoms: '',
       allergy: '',
-      allergy_details_drug: '',
-      allergy_details_food: '',
+      allergy_drug: '',
+      allergy_food: '',
       admissionDate: format(new Date(), 'yyyy-MM-dd'),
       chronicDiseases: '',
       medications: '',
@@ -576,29 +576,6 @@ export default function PatientHistoryForm() {
 
         const data = await response.json();
 
-        // Parse allergy_details จาก JSON string
-        let allergyDetails: { drug?: string; food?: string } = { drug: '', food: '' };
-        try {
-          if (data.allergy_details) {
-            if (typeof data.allergy_details === 'string') {
-              try {
-                allergyDetails = JSON.parse(data.allergy_details);
-                if (typeof allergyDetails !== 'object' || allergyDetails === null) {
-                  throw new Error('allergy_details ไม่ใช่อ็อบเจ็กต์');
-                }
-              } catch (parseError) {
-                console.warn('Invalid JSON in allergy_details, treating as food allergy:', data.allergy_details);
-                allergyDetails = { drug: '', food: data.allergy_details.trim() };
-              }
-            } else {
-              allergyDetails = data.allergy_details;
-            }
-          }
-        } catch (e) {
-          console.error('Error processing allergy_details:', e);
-          allergyDetails = { drug: '', food: data.allergy_details?.trim() || '' };
-        }
-
         // เติมข้อมูลลงในฟอร์ม
         setValue('id_card', data.id_card?.toString() || id_card);
         setValue('name', data.name?.trim() || '');
@@ -607,8 +584,8 @@ export default function PatientHistoryForm() {
         setValue('height', data.height || 0);
         setValue('symptoms', data.symptoms?.trim() || '');
         setValue('allergy', data.allergy ? 'แพ้' : 'ไม่แพ้');
-        setValue('allergy_details_drug', allergyDetails.drug?.trim() || '');
-        setValue('allergy_details_food', allergyDetails.food?.trim() || '');
+        setValue('allergy_drug', data.allergy_drug?.trim() || '');
+        setValue('allergy_food', data.allergy_food?.trim() || '');
         setValue('admissionDate', data.admission_date ? format(new Date(data.admission_date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
         setValue('chronicDiseases', data.chronic_diseases?.trim() || '');
         setValue('medications', data.medications?.trim() || '');
@@ -829,14 +806,17 @@ export default function PatientHistoryForm() {
         });
         return;
       }
+      if (data.allergy === 'แพ้' && !data.allergy_drug?.trim() && !data.allergy_food?.trim()) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'กรุณาระบุแพ้ยาหรือแพ้อาหารอย่างน้อยหนึ่งรายการเมื่อเลือกแพ้',
+          showConfirmButton: true,
+        });
+        return;
+      }
 
-      // รวม allergy_details_drug และ allergy_details_food เป็น JSON string
-      const allergyDetails = {
-        drug: data.allergy_details_drug?.trim() || '',
-        food: data.allergy_details_food?.trim() || '',
-      };
-
-      // สร้าง payload โดยแก้ไข key ให้ตรงกับ backend
+      // สร้าง payload โดยส่ง allergy_drug และ allergy_food แยกกัน
       const payload = {
         id_card: data.id_card,
         name: data.name.trim(),
@@ -845,7 +825,8 @@ export default function PatientHistoryForm() {
         height: data.height || 0,
         symptoms: data.symptoms?.trim() || '',
         allergy: data.allergy === 'แพ้',
-        allergy_details: JSON.stringify(allergyDetails),
+        allergy_drug: data.allergy_drug?.trim() || '',
+        allergy_food: data.allergy_food?.trim() || '',
         admission_date: data.admissionDate,
         chronic_diseases: data.chronicDiseases?.trim() || '',
         medications: data.medications?.trim() || '',
@@ -909,7 +890,7 @@ export default function PatientHistoryForm() {
       } else {
         let errorMessage = result.message || result.error || `ไม่สามารถ${isEditMode ? 'อัปเดต' : 'บันทึก'}ข้อมูลได้`;
         if (response.status === 400) {
-          errorMessage = 'ข้อมูลที่ส่งไม่ถูกต้อง กรุณาตรวจสอบข้อมูล';
+          errorMessage = result.error || 'ข้อมูลที่ส่งไม่ถูกต้อง กรุณาตรวจสอบข้อมูล';
         } else if (response.status === 401) {
           errorMessage = 'การยืนยันตัวตนล้มเหลว กรุณาล็อกอินใหม่';
           router.push('/login');
@@ -918,7 +899,7 @@ export default function PatientHistoryForm() {
         } else if (response.status === 405) {
           errorMessage = 'เซิร์ฟเวอร์ไม่รองรับการอัปเดตข้อมูลในขณะนี้';
         } else if (response.status === 500) {
-          errorMessage = 'เกิดข้อผิดพลาดในเซิร์ฟเวอร์ กรุณาลองใหม่ภายหลัง';
+          errorMessage = result.error || 'เกิดข้อผิดพลาดในเซิร์ฟเวอร์ กรุณาลองใหม่ภายหลัง';
         }
         await Swal.fire({
           icon: 'error',
@@ -945,8 +926,8 @@ export default function PatientHistoryForm() {
       setShowAllergyDetails(true);
     } else {
       setShowAllergyDetails(false);
-      setValue('allergy_details_drug', '');
-      setValue('allergy_details_food', '');
+      setValue('allergy_drug', '');
+      setValue('allergy_food', '');
     }
   };
 
@@ -1135,14 +1116,14 @@ export default function PatientHistoryForm() {
                   <div className='flex items-center space-x-2'>
                     <label className='font-medium text-black w-24'>แพ้ยา</label>
                     <Input
-                      {...register('allergy_details_drug')}
+                      {...register('allergy_drug')}
                       placeholder='ระบุยาที่แพ้'
                     />
                   </div>
                   <div className='flex items-center space-x-2'>
                     <label className='font-medium text-black w-24'>แพ้อาหาร</label>
                     <Input
-                      {...register('allergy_details_food')}
+                      {...register('allergy_food')}
                       placeholder='ระบุอาหารที่แพ้'
                     />
                   </div>
