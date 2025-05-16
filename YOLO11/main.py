@@ -7,6 +7,7 @@ import io
 from PIL import Image
 import json
 import uvicorn
+import gc
 
 app = FastAPI()
 
@@ -72,6 +73,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 try:
                     image_data = base64.b64decode(image_b64)
                     image = Image.open(io.BytesIO(image_data)).convert("RGB")
+                    # ลดขนาดภาพลงเพื่อเพิ่มความเร็วในการทำนาย
+                    image = image.resize((320, 320))
                 except Exception as e:
                     print(f"ข้อผิดพลาดในการแปลงภาพ: {e}")
                     await websocket.send_json({"error": f"Failed to decode image: {str(e)}"})
@@ -80,10 +83,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 # เลือกโมเดลและทำนาย
                 try:
                     if model_type == "TH":
-                        results = model_TH.predict(image, imgsz=640, conf=0.3)
+                        results = model_TH.predict(image, imgsz=320, conf=0.3, max_det=1, verbose=False)
                         class_names = model_TH.names
                     else:
-                        results = model_SL.predict(image, imgsz=640, conf=0.3)
+                        results = model_SL.predict(image, imgsz=320, conf=0.3, max_det=1, verbose=False)
                         class_names = model_SL.names
                 except Exception as e:
                     print(f"ข้อผิดพลาดในการทำนาย: {e}")
@@ -119,6 +122,7 @@ async def websocket_endpoint(websocket: WebSocket):
         print("ปิดการเชื่อมต่อ WebSocket")
         if websocket.application_state != WebSocketState.DISCONNECTED:
             await websocket.close()
+        gc.collect()
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

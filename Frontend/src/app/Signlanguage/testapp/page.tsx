@@ -49,14 +49,14 @@ const SignLanguagePage: React.FC = () => {
     let isMounted = true;
 
     const connectWebSocket = () => {
-      const ws = new WebSocket('wss://dcb4-49-228-238-45.ngrok-free.app/ws/predict/');
+      const ws = new WebSocket('wss://b222-61-7-185-229.ngrok-free.app/ws/predict/');
       socketRef.current = ws;
 
       ws.onopen = () => {
         setErrorMessage(null);
         reconnectAttemptsRef.current = 0;
         if (isMounted) {
-          intervalRef.current = setInterval(() => sendFrameToServer(model), 200);
+          intervalRef.current = setInterval(() => sendFrameToServer(model), 800); // แก้เป็น 800ms
         }
       };
 
@@ -127,10 +127,13 @@ const SignLanguagePage: React.FC = () => {
       const context = canvas.getContext('2d');
       if (!context) return;
 
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      // ↓ ลดขนาดภาพเหลือ 320x240 เพื่อลดโหลด
+      canvas.width = 320;
+      canvas.height = 240;
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const imageData = canvas.toDataURL('image/jpeg', 0.7);
+
+      // ↓ ลด quality JPEG ลง
+      const imageData = canvas.toDataURL('image/jpeg', 0.4);
 
       socket.send(JSON.stringify({ model: selectedModel, image: imageData }));
     };
@@ -199,7 +202,6 @@ const SignLanguagePage: React.FC = () => {
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-start p-4 bg-gray-100">
-      {/* เบลอพื้นหลังเมื่อเปิดกล้อง */}
       {isCameraActive && (
         <div className="absolute inset-0 backdrop-blur-md z-0"></div>
       )}
@@ -247,4 +249,3 @@ const SignLanguagePage: React.FC = () => {
 };
 
 export default SignLanguagePage;
-

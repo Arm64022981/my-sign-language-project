@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { format } from 'date-fns';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -26,7 +26,7 @@ const labelTranslationsSL: { [key: string]: string } = {
   Anus: 'ทวารหนัก',
   'Arm Pain': 'ปวดแขน',
   Asthma: 'โรคหอบหืด',
-  Astigmatism: 'ภาวะสายตาสั้น',
+  Astigmatism: 'ภาวะสายตาเอียง',
   Blister: 'แผลพอง',
   Bloating: 'อาการท้องอืด',
   'Blurred Vision': 'มองเห็นไม่ชัด',
@@ -50,7 +50,7 @@ const labelTranslationsSL: { [key: string]: string } = {
   Fasting: 'การอดอาหาร',
   Fever: 'ไข้',
   'Food Allergy': 'อาการแพ้อาหาร',
-  'Food intolerance': 'อาการไม่ย่อยอาหาร',
+  'Food intolerance': 'อาการแพ้อาหาร',
   Headache: 'อาการปวดหัว',
   'High fever': 'ไข้สูง',
   'Hot and cold sensation': 'อาการร้อนหนาวสลับ',
@@ -119,11 +119,11 @@ const labelTranslationsTH: { [key: string]: string } = {
   'When did the hearing loss begin': 'การสูญเสียการได้ยินเริ่มเมื่อใด',
 };
 
-const getLabelTranslations = (model: string) => {
+const getLabelTranslations = (model: 'SL' | 'TH'): { [key: string]: string } => {
   return model === 'TH' ? labelTranslationsTH : labelTranslationsSL;
 };
 
-const getRandomColor = () => {
+const getRandomColor = (): string => {
   const r = Math.floor(Math.random() * 156) + 100;
   const g = Math.floor(Math.random() * 156) + 100;
   const b = Math.floor(Math.random() * 156) + 100;
@@ -133,35 +133,38 @@ const getRandomColor = () => {
 // คอมโพเนนต์ UI
 const Input = ({ className = '', ...props }: React.InputHTMLAttributes<HTMLInputElement>) => (
   <input
-    className={`w-full p-1 border border-gray-400 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white shadow-sm text-black text-sm ${className}`}
+    className={`w-full p-1 border border-gray-400 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white shadow-sm text-black text-sm disabled:bg-gray-200 disabled:cursor-not-allowed ${className}`}
     {...props}
   />
 );
 
-const Checkbox = ({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) => (
+const Checkbox = ({ checked, onChange, label, disabled = false }: { checked: boolean; onChange: () => void; label: string; disabled?: boolean }) => (
   <label className='flex items-center space-x-2 text-black text-sm'>
     <input
       type='checkbox'
       checked={checked}
       onChange={onChange}
-      className='w-4 h-4 text-blue-500 rounded focus:ring-blue-500'
+      disabled={disabled}
+      className='w-4 h-4 text-blue-500 rounded focus:ring-blue-500 disabled:opacity-50'
     />
     <span>{label}</span>
   </label>
 );
 
-const Select = ({ className = '', children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) => (
+const Select = ({ className = '', children, disabled = false, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) => (
   <select
-    className={`w-full p-1 border border-gray-400 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white shadow-sm text-black text-sm ${className}`}
+    className={`w-full p-1 border border-gray-400 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white shadow-sm text-black text-sm disabled:bg-gray-200 disabled:cursor-not-allowed ${className}`}
+    disabled={disabled}
     {...props}
   >
     {children}
   </select>
 );
 
-const Button = ({ className, children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+const Button = ({ className, children, disabled = false, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
   <button
-    className={`px-3 py-1 text-sm text-white rounded-md shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all ${className}`}
+    className={`px-3 py-1 text-sm text-white rounded-md shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+    disabled={disabled}
     {...props}
   >
     {children}
@@ -258,16 +261,16 @@ const SignLanguagePopup = ({ isOpen, onClose, onVideoSelect }: { isOpen: boolean
     },
   };
 
-  const handleCategoryChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleCategoryChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedCategory(event.target.value);
     setSelectedSubCategory('');
-  };
+  }, []);
 
-  const handleSubCategoryChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleSubCategoryChange = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedSubCategory(event.target.value);
-  };
+  }, []);
 
-  const handleQuestionSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleQuestionSelect = useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedQuestion = event.target.value;
     if (
       selectedCategory &&
@@ -286,7 +289,7 @@ const SignLanguagePopup = ({ isOpen, onClose, onVideoSelect }: { isOpen: boolean
     ) {
       onVideoSelect((videoCategories[selectedCategory] as { [key: string]: string })[selectedQuestion]);
     }
-  };
+  }, [selectedCategory, selectedSubCategory, onVideoSelect]);
 
   if (!isOpen) return null;
 
@@ -401,9 +404,9 @@ export default function PatientHistoryForm() {
   const id_card = searchParams.get('id_card') || '';
   const isEditMode = searchParams.get('edit') === 'true';
 
-  const { register, handleSubmit, control, reset, setValue, formState: { errors } } = useForm<PatientForm>({
+  const { register, handleSubmit, control, reset, setValue, formState: { errors, isSubmitting } } = useForm<PatientForm>({
     defaultValues: {
-      id_card: id_card,
+      id_card,
       name: '',
       age: 0,
       weight: 0,
@@ -452,16 +455,7 @@ export default function PatientHistoryForm() {
       try {
         const token = localStorage.getItem('token')?.trim();
         if (!token) {
-          setNurseName('ไม่ระบุชื่อ');
-          setValue('nurseName', 'ไม่ระบุชื่อ');
-          await Swal.fire({
-            icon: 'error',
-            title: 'เกิดข้อผิดพลาด',
-            text: 'กรุณาล็อกอินเพื่อเข้าถึงหน้านี้',
-            showConfirmButton: true,
-          });
-          router.push('/login');
-          return;
+          throw new Error('ไม่พบ token การล็อกอิน');
         }
 
         let response = await fetch('http://localhost:5000/api/profile', {
@@ -475,14 +469,7 @@ export default function PatientHistoryForm() {
         if (response.status === 401) {
           const newToken = await refreshToken();
           if (!newToken) {
-            await Swal.fire({
-              icon: 'error',
-              title: 'เซสชันหมดอายุ',
-              text: 'กรุณาล็อกอินใหม่',
-              showConfirmButton: true,
-            });
-            router.push('/login');
-            return;
+            throw new Error('เซสชันหมดอายุ');
           }
 
           response = await fetch('http://localhost:5000/api/profile', {
@@ -494,13 +481,13 @@ export default function PatientHistoryForm() {
           });
         }
 
-        const data = await response.json();
         if (!response.ok) {
-          throw new Error(data.error || 'ไม่สามารถดึงข้อมูลโปรไฟล์ได้');
+          throw new Error(`ไม่สามารถดึงข้อมูลโปรไฟล์ได้ (รหัส: ${response.status})`);
         }
 
+        const data = await response.json();
         const profile = data.nurse || data.doctor || data.user_data || data;
-        const fullname = profile.fullname || profile.name || 'ไม่ระบุชื่อ';
+        const fullname = profile.fullname?.trim() || profile.name?.trim() || 'ไม่ระบุชื่อ';
         setNurseName(fullname);
         setValue('nurseName', fullname);
       } catch (error) {
@@ -519,7 +506,7 @@ export default function PatientHistoryForm() {
 
     const refreshToken = async () => {
       try {
-        const refreshToken = localStorage.getItem('refresh_token');
+        const refreshToken = localStorage.getItem('refresh_token')?.trim();
         if (!refreshToken) {
           localStorage.removeItem('token');
           localStorage.removeItem('refresh_token');
@@ -532,13 +519,13 @@ export default function PatientHistoryForm() {
           body: JSON.stringify({ refresh_token: refreshToken }),
         });
 
-        const data = await response.json();
-        if (response.ok) {
-          localStorage.setItem('token', data.access_token);
-          return data.access_token;
-        } else {
-          throw new Error(data.error || 'Failed to refresh token');
+        if (!response.ok) {
+          throw new Error('Failed to refresh token');
         }
+
+        const data = await response.json();
+        localStorage.setItem('token', data.access_token);
+        return data.access_token;
       } catch (error) {
         console.error('Error refreshing token:', error);
         localStorage.removeItem('token');
@@ -548,7 +535,7 @@ export default function PatientHistoryForm() {
     };
 
     fetchProfile();
-  }, [setValue, router]);
+  }, [router, setValue]);
 
   // ดึงข้อมูลผู้ป่วยเมื่ออยู่ในโหมดแก้ไข
   useEffect(() => {
@@ -557,7 +544,7 @@ export default function PatientHistoryForm() {
 
       setLoading(true);
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('token')?.trim();
         if (!token) {
           throw new Error('ไม่พบ token การล็อกอิน');
         }
@@ -571,12 +558,10 @@ export default function PatientHistoryForm() {
         });
 
         if (!response.ok) {
-          throw new Error('ไม่สามารถดึงข้อมูลผู้ป่วยได้');
+          throw new Error(`ไม่สามารถดึงข้อมูลผู้ป่วยได้ (รหัส: ${response.status})`);
         }
 
         const data = await response.json();
-
-        // เติมข้อมูลลงในฟอร์ม
         setValue('id_card', data.id_card?.toString() || id_card);
         setValue('name', data.name?.trim() || '');
         setValue('age', data.age || 0);
@@ -613,15 +598,14 @@ export default function PatientHistoryForm() {
     let isMounted = true;
 
     const connectWebSocket = () => {
-      const ws = new WebSocket('wss://3b0b-202-80-249-225.ngrok-free.app/ws/predict/');
+      const ws = new WebSocket('wss://b222-61-7-185-229.ngrok-free.app/ws/predict/');
       socketRef.current = ws;
 
       ws.onopen = () => {
+        if (!isMounted) return;
         setErrorMessage(null);
         reconnectAttemptsRef.current = 0;
-        if (isMounted) {
-          intervalRef.current = setInterval(() => sendFrameToServer(model), 200);
-        }
+        intervalRef.current = setInterval(() => sendFrameToServer(model), 200);
       };
 
       ws.onmessage = (event) => {
@@ -633,6 +617,8 @@ export default function PatientHistoryForm() {
             drawPredictions(data);
           } else if (data.error) {
             setErrorMessage(`ข้อผิดพลาดจากเซิร์ฟเวอร์: ${data.error}`);
+          } else {
+            setErrorMessage('ข้อมูลจากเซิร์ฟเวอร์ไม่ถูกต้อง');
           }
         } catch {
           setErrorMessage('ข้อผิดพลาดในการประมวลผลข้อมูลจากเซิร์ฟเวอร์');
@@ -641,14 +627,15 @@ export default function PatientHistoryForm() {
 
       ws.onclose = () => {
         if (intervalRef.current) clearInterval(intervalRef.current);
-        if (isMounted && isCameraOn && reconnectAttemptsRef.current < maxReconnectAttempts) {
+        if (!isMounted) return;
+        if (isCameraOn && reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
-          setErrorMessage(`เชื่อมต่อใหม่ ${reconnectAttemptsRef.current}/${maxReconnectAttempts}...`);
+          setErrorMessage(`กำลังเชื่อมต่อใหม่ ครั้งที่ ${reconnectAttemptsRef.current}/${maxReconnectAttempts}...`);
           setTimeout(() => {
             if (isMounted && isCameraOn) connectWebSocket();
           }, 5000);
-        } else if (isMounted) {
-          setErrorMessage('ไม่สามารถเชื่อมต่อ WebSocket ได้');
+        } else {
+          setErrorMessage('ไม่สามารถเชื่อมต่อ WebSocket ได้ กรุณาลองใหม่');
         }
       };
 
@@ -659,15 +646,16 @@ export default function PatientHistoryForm() {
 
     const startCameraAndSocket = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
         if (isMounted && videoRef.current) {
           videoRef.current.srcObject = stream;
           streamRef.current = stream;
         }
         connectWebSocket();
-      } catch {
+      } catch (error) {
         if (isMounted) {
-          setErrorMessage('ไม่สามารถเข้าถึงกล้องได้ กรุณาอนุญาต');
+          console.error('Camera access error:', error);
+          setErrorMessage('ไม่สามารถเข้าถึงกล้องได้ กรุณาอนุญาตการเข้าถึงกล้อง');
           setIsCameraOn(false);
         }
       }
@@ -675,8 +663,14 @@ export default function PatientHistoryForm() {
 
     const stopCameraAndSocket = () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      if (socketRef.current) socketRef.current.close();
-      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
+      if (socketRef.current) {
+        socketRef.current.close();
+        socketRef.current = null;
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
       if (videoRef.current) videoRef.current.srcObject = null;
       clearCanvas();
       setAllLabels({});
@@ -689,7 +683,7 @@ export default function PatientHistoryForm() {
       const video = videoRef.current;
       const socket = socketRef.current;
       const canvas = canvasRef.current;
-      if (!video || !socket || !canvas || socket.readyState !== WebSocket.OPEN) return;
+      if (!video || !socket || !canvas || socket.readyState !== WebSocket.OPEN || !video.videoWidth) return;
 
       const context = canvas.getContext('2d');
       if (!context) return;
@@ -698,15 +692,14 @@ export default function PatientHistoryForm() {
       canvas.height = video.videoHeight;
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
       const imageData = canvas.toDataURL('image/jpeg', 0.7);
-
       socket.send(JSON.stringify({ model: selectedModel, image: imageData }));
     };
 
     const clearCanvas = () => {
       const canvas = canvasRef.current;
-      if (canvas) {
-        const context = canvas.getContext('2d');
-        if (context) context.clearRect(0, 0, canvas.width, canvas.height);
+      const context = canvas?.getContext('2d');
+      if (context && canvas) {
+        context.clearRect(0, 0, canvas.width, canvas.height);
       }
     };
 
@@ -730,9 +723,8 @@ export default function PatientHistoryForm() {
 
     const drawPredictions = (predictions: Prediction[]) => {
       const canvas = canvasRef.current;
-      if (!canvas) return;
-      const context = canvas.getContext('2d');
-      if (!context) return;
+      const context = canvas?.getContext('2d');
+      if (!canvas || !context) return;
 
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.font = 'bold 16px sans-serif';
@@ -753,72 +745,48 @@ export default function PatientHistoryForm() {
 
         context.fillStyle = 'rgba(0, 0, 0, 0.7)';
         context.fillRect(textX - 2, textY - textHeight, textWidth + 4, textHeight + 4);
-
         context.fillStyle = color;
         context.fillText(labelText, textX, textY);
       });
     };
 
-    if (isCameraOn) startCameraAndSocket();
-    else stopCameraAndSocket();
+    if (isCameraOn) {
+      startCameraAndSocket();
+    } else {
+      stopCameraAndSocket();
+    }
 
     return () => {
       isMounted = false;
       stopCameraAndSocket();
       if (selectedVideo) {
         URL.revokeObjectURL(selectedVideo);
+        setSelectedVideo(null);
       }
     };
   }, [isCameraOn, model, selectedVideo]);
 
-  const toggleCamera = () => {
-    setIsCameraOn((prevState) => !prevState);
-  };
+  const toggleCamera = useCallback(() => {
+    setIsCameraOn((prev) => !prev);
+  }, []);
 
-  // การส่งข้อมูล
   const onSubmitHandler = async (data: PatientForm) => {
     try {
-      // ตรวจสอบฟิลด์ที่จำเป็น
       if (!data.name.trim()) {
-        await Swal.fire({
-          icon: 'error',
-          title: 'เกิดข้อผิดพลาด',
-          text: 'กรุณากรอกชื่อ-นามสกุล',
-          showConfirmButton: true,
-        });
-        return;
+        throw new Error('กรุณากรอกชื่อ-นามสกุล');
       }
       if (data.age <= 0) {
-        await Swal.fire({
-          icon: 'error',
-          title: 'เกิดข้อผิดพลาด',
-          text: 'กรุณาเลือกอายุที่ถูกต้อง',
-          showConfirmButton: true,
-        });
-        return;
+        throw new Error('กรุณาเลือกอายุที่ถูกต้อง');
       }
-      if (data.allergy === '') {
-        await Swal.fire({
-          icon: 'error',
-          title: 'เกิดข้อผิดพลาด',
-          text: 'กรุณาเลือกสถานะอาการแพ้ (แพ้/ไม่แพ้)',
-          showConfirmButton: true,
-        });
-        return;
+      if (!data.allergy) {
+        throw new Error('กรุณาเลือกสถานะอาการแพ้ (แพ้/ไม่แพ้)');
       }
       if (data.allergy === 'แพ้' && !data.allergy_drug?.trim() && !data.allergy_food?.trim()) {
-        await Swal.fire({
-          icon: 'error',
-          title: 'เกิดข้อผิดพลาด',
-          text: 'กรุณาระบุแพ้ยาหรือแพ้อาหารอย่างน้อยหนึ่งรายการเมื่อเลือกแพ้',
-          showConfirmButton: true,
-        });
-        return;
+        throw new Error('กรุณาระบุแพ้ยาหรือแพ้อาหารอย่างน้อยหนึ่งรายการ');
       }
 
-      // สร้าง payload โดยส่ง allergy_drug และ allergy_food แยกกัน
       const payload = {
-        id_card: data.id_card,
+        id_card: data.id_card.trim(),
         name: data.name.trim(),
         age: data.age,
         weight: data.weight || 0,
@@ -838,24 +806,15 @@ export default function PatientHistoryForm() {
         nationality: data.nationality?.trim() || '',
       };
 
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token')?.trim();
       if (!token) {
-        await Swal.fire({
-          icon: 'error',
-          title: 'เกิดข้อผิดพลาด',
-          text: 'ไม่พบ token การล็อกอิน กรุณาล็อกอินใหม่',
-          showConfirmButton: true,
-        });
-        router.push('/login');
-        return;
+        throw new Error('ไม่พบ token การล็อกอิน กรุณาล็อกอินใหม่');
       }
 
       const url = isEditMode
         ? `http://localhost:5000/api/patients/${data.id_card}`
         : 'http://localhost:5000/api/patients';
       const method = isEditMode ? 'PUT' : 'POST';
-
-      console.log('Sending request:', { url, method, payload });
 
       const response = await fetch(url, {
         method,
@@ -866,29 +825,9 @@ export default function PatientHistoryForm() {
         body: JSON.stringify(payload),
       });
 
-      let result;
-      try {
-        result = await response.json();
-        console.log('API Response:', result);
-      } catch (error) {
-        console.error('Failed to parse response as JSON:', error);
-        throw new Error(`เซิร์ฟเวอร์ส่ง response ที่ไม่ใช่ JSON (รหัส: ${response.status})`);
-      }
-
-      if (response.ok) {
-        await Swal.fire({
-          icon: 'success',
-          title: 'สำเร็จ!',
-          text: isEditMode ? 'อัปเดตข้อมูลสำเร็จ' : 'บันทึกข้อมูลสำเร็จ',
-          showConfirmButton: false,
-          timer: 1500,
-        });
-        reset();
-        setAllergyValue('');
-        setShowAllergyDetails(false);
-        router.push('/Signlanguage/Patient');
-      } else {
-        let errorMessage = result.message || result.error || `ไม่สามารถ${isEditMode ? 'อัปเดต' : 'บันทึก'}ข้อมูลได้`;
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        let errorMessage = result.message || result.error || `ไม่สามารถ${isEditMode ? 'อัพเดท' : 'บันทึก'}ข้อมูลได้`;
         if (response.status === 400) {
           errorMessage = result.error || 'ข้อมูลที่ส่งไม่ถูกต้อง กรุณาตรวจสอบข้อมูล';
         } else if (response.status === 401) {
@@ -897,29 +836,37 @@ export default function PatientHistoryForm() {
         } else if (response.status === 404) {
           errorMessage = 'ไม่พบผู้ป่วยที่มีเลขบัตรประชาชนนี้';
         } else if (response.status === 405) {
-          errorMessage = 'เซิร์ฟเวอร์ไม่รองรับการอัปเดตข้อมูลในขณะนี้';
+          errorMessage = 'เซิร์ฟเวอร์ไม่รองรับการอัพเดทข้อมูลในขณะนี้';
         } else if (response.status === 500) {
           errorMessage = result.error || 'เกิดข้อผิดพลาดในเซิร์ฟเวอร์ กรุณาลองใหม่ภายหลัง';
         }
-        await Swal.fire({
-          icon: 'error',
-          title: 'เกิดข้อผิดพลาด',
-          text: `${errorMessage} (รหัส: ${response.status})`,
-          showConfirmButton: true,
-        });
+        throw new Error(`${errorMessage} (รหัส: ${response.status})`);
       }
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'สำเร็จ!',
+        text: isEditMode ? 'อัพเดทข้อมูลสำเร็จ' : 'บันทึกข้อมูลสำเร็จ',
+        showConfirmButton: false,
+        timer: 1500,
+      });
+
+      reset();
+      setAllergyValue('');
+      setShowAllergyDetails(false);
+      router.push('/Signlanguage/Patient');
     } catch (error) {
       console.error('Submit Error:', error);
       await Swal.fire({
         icon: 'error',
         title: 'เกิดข้อผิดพลาด',
-        text: `ไม่สามารถ${isEditMode ? 'อัปเดต' : 'บันทึก'}ข้อมูลได้: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        text: error instanceof Error ? error.message : 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ',
         showConfirmButton: true,
       });
     }
   };
 
-  const handleAllergyChange = (value: 'แพ้' | 'ไม่แพ้') => {
+  const handleAllergyChange = useCallback((value: 'แพ้' | 'ไม่แพ้') => {
     setAllergyValue(value);
     setValue('allergy', value);
     if (value === 'แพ้') {
@@ -929,26 +876,31 @@ export default function PatientHistoryForm() {
       setValue('allergy_drug', '');
       setValue('allergy_food', '');
     }
-  };
+  }, [setValue]);
 
-  const openSignLanguagePopup = () => {
+  const openSignLanguagePopup = useCallback(() => {
     setIsSignLanguagePopupOpen(true);
-  };
+  }, []);
 
-  const closeSignLanguagePopup = () => {
+  const closeSignLanguagePopup = useCallback(() => {
     setIsSignLanguagePopupOpen(false);
     if (selectedVideo) {
       URL.revokeObjectURL(selectedVideo);
       setSelectedVideo(null);
     }
-  };
+  }, [selectedVideo]);
 
-  const handleVideoSelect = (videoURL: string) => {
+  const handleVideoSelect = useCallback((videoURL: string) => {
     setSelectedVideo(videoURL);
-  };
+  }, []);
 
-  if (loading) return <div className="p-8 text-lg">กำลังโหลดข้อมูลผู้ป่วย...</div>;
-  if (error) return <div className="p-8 text-red-500">{error}</div>;
+  if (loading) {
+    return <div className="p-8 text-lg text-center">กำลังโหลดข้อมูลผู้ป่วย...</div>;
+  }
+
+  if (error) {
+    return <div className="p-8 text-red-500 text-center">{error}</div>;
+  }
 
   return (
     <div
@@ -962,23 +914,24 @@ export default function PatientHistoryForm() {
     >
       <div className='flex w-full max-w-6xl gap-4'>
         {/* ฟอร์มซักประวัติ */}
-        <div className='w-9/15 bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-4 max-h-[85vh] overflow-y-auto relative'>
+        <div className='w-3/5 bg-white/80 backdrop-blur-lg rounded-lg shadow-lg p-6 max-h-[85vh] overflow-y-auto relative'>
           <button
             onClick={toggleCamera}
-            className='absolute top-4 right-4 text-gray-700 hover:text-blue-600 z-10'
+            className='absolute top-4 right-4 text-gray-700 hover:text-blue-600 z-10 disabled:opacity-50'
+            disabled={isSubmitting}
           >
             {isCameraOn ? 'ปิดกล้อง' : 'เปิดกล้อง'}
           </button>
 
-          <h2 className='text-lg font-semibold mb-3 text-black border-b border-gray-300 pb-1'>
+          <h2 className='text-lg font-semibold mb-3 text-black border-b border-gray-300 pb-2'>
             {isEditMode ? 'แก้ไขประวัติผู้ป่วย' : 'ซักประวัติผู้ป่วย'}
           </h2>
 
           <NurseInfo nurseName={nurseName} />
 
-          <form onSubmit={handleSubmit(onSubmitHandler)} className='text-sm'>
+          <form onSubmit={handleSubmit(onSubmitHandler)} className='text-sm space-y-4'>
             <input type='hidden' {...register('nurseName')} />
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-3'>
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
               <div className='flex items-center space-x-2'>
                 <label className='font-medium text-black w-24'>บัตรประชาชน</label>
                 <div className='w-full'>
@@ -992,7 +945,7 @@ export default function PatientHistoryForm() {
                     })}
                     placeholder='กรอกเลขบัตรประชาชน'
                     readOnly={isEditMode}
-                    className={isEditMode ? 'bg-gray-200 cursor-not-allowed' : ''}
+                    disabled={isEditMode || isSubmitting}
                   />
                   {errors.id_card && (
                     <p className='text-red-500 text-xs mt-1'>{errors.id_card.message}</p>
@@ -1009,6 +962,7 @@ export default function PatientHistoryForm() {
                       validate: (value) => value.trim() !== '' || 'ชื่อ-นามสกุลต้องไม่ว่าง',
                     })}
                     placeholder='กรอกชื่อ-นามสกุล'
+                    disabled={isSubmitting}
                   />
                   {errors.name && (
                     <p className='text-red-500 text-xs mt-1'>{errors.name.message}</p>
@@ -1018,7 +972,7 @@ export default function PatientHistoryForm() {
 
               <div className='flex items-center space-x-2'>
                 <label className='font-medium text-black w-24'>เพศ</label>
-                <Select {...register('gender')}>
+                <Select {...register('gender')} disabled={isSubmitting}>
                   <option value=''>เลือกเพศ</option>
                   {['ชาย', 'หญิง', 'อื่น ๆ'].map((gender) => (
                     <option key={gender} value={gender}>
@@ -1037,10 +991,14 @@ export default function PatientHistoryForm() {
                     validate: (value) => value > 0 || 'กรุณาเลือกอายุที่ถูกต้อง',
                   }}
                   render={({ field }) => (
-                    <Select {...field} onChange={(e) => field.onChange(parseInt(e.target.value))}>
+                    <Select
+                      {...field}
+                      onChange={(e) => field.onChange(parseInt(e.target.value))}
+                      disabled={isSubmitting}
+                    >
                       <option value={0}>เลือกอายุ</option>
                       {[...Array(100).keys()].map((n) => (
-                        <option key={n} value={n + 1}>
+                        <option key={n + 1} value={n + 1}>
                           {n + 1} ปี
                         </option>
                       ))}
@@ -1055,22 +1013,38 @@ export default function PatientHistoryForm() {
               <div className='flex items-center space-x-2'>
                 <label className='font-medium text-black w-24'>น้ำหนัก</label>
                 <div className='flex items-center w-full'>
-                  <Input type='number' {...register('weight', { valueAsNumber: true })} placeholder='กก.' />
-                  <span className='p-1 bg-gray-200 border border-gray-400 rounded-md text-black'>กก.</span>
+                  <Input
+                    type='number'
+                    {...register('weight', { valueAsNumber: true, min: { value: 0, message: 'น้ำหนักต้องไม่ติดลบ' } })}
+                    placeholder='กก.'
+                    disabled={isSubmitting}
+                  />
+                  <span className='p-1 bg-gray-200 border border-gray-400 rounded-md text-black ml-2'>กก.</span>
                 </div>
+                {errors.weight && (
+                  <p className='text-red-500 text-xs mt-1'>{errors.weight.message}</p>
+                )}
               </div>
 
               <div className='flex items-center space-x-2'>
                 <label className='font-medium text-black w-24'>ส่วนสูง</label>
                 <div className='flex items-center w-full'>
-                  <Input type='number' {...register('height', { valueAsNumber: true })} placeholder='ซม.' />
-                  <span className='p-1 bg-gray-200 border border-gray-400 rounded-md text-black'>ซม.</span>
+                  <Input
+                    type='number'
+                    {...register('height', { valueAsNumber: true, min: { value: 0, message: 'ส่วนสูงต้องไม่ติดลบ' } })}
+                    placeholder='ซม.'
+                    disabled={isSubmitting}
+                  />
+                  <span className='p-1 bg-gray-200 border border-gray-400 rounded-md text-black ml-2'>ซม.</span>
                 </div>
+                {errors.height && (
+                  <p className='text-red-500 text-xs mt-1'>{errors.height.message}</p>
+                )}
               </div>
 
               <div className='flex items-center space-x-2'>
                 <label className='font-medium text-black w-24'>กรุ๊ปเลือด</label>
-                <Select {...register('bloodType')}>
+                <Select {...register('bloodType')} disabled={isSubmitting}>
                   <option value=''>เลือกรูปแบบเลือด</option>
                   {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((type) => (
                     <option key={type} value={type}>
@@ -1082,17 +1056,29 @@ export default function PatientHistoryForm() {
 
               <div className='flex items-center space-x-2'>
                 <label className='font-medium text-black w-24'>สัญชาติ</label>
-                <Input {...register('nationality')} placeholder='กรอกสัญชาติ' />
+                <Input {...register('nationality')} placeholder='กรอกสัญชาติ' disabled={isSubmitting} />
               </div>
 
               <div className='flex items-center space-x-2'>
                 <label className='font-medium text-black w-24'>เบอร์ติดต่อ</label>
-                <Input {...register('emergencyContact')} placeholder='เบอร์โทร' />
+                <Input
+                  {...register('emergencyContact', {
+                    pattern: {
+                      value: /^\d{10}$/,
+                      message: 'เบอร์โทรศัพท์ต้องมี 10 หลัก',
+                    },
+                  })}
+                  placeholder='เบอร์โทร'
+                  disabled={isSubmitting}
+                />
+                {errors.emergencyContact && (
+                  <p className='text-red-500 text-xs mt-1'>{errors.emergencyContact.message}</p>
+                )}
               </div>
 
               <div className='flex items-center space-x-2'>
                 <label className='font-medium text-black w-24'>ลักษณะอาการ</label>
-                <Input {...register('symptoms')} placeholder='ระบุอาการที่พบ' />
+                <Input {...register('symptoms')} placeholder='ระบุอาการที่พบ' disabled={isSubmitting} />
               </div>
 
               <div className='flex items-center space-x-2'>
@@ -1102,11 +1088,13 @@ export default function PatientHistoryForm() {
                     checked={allergyValue === 'แพ้'}
                     onChange={() => handleAllergyChange('แพ้')}
                     label='แพ้'
+                    disabled={isSubmitting}
                   />
                   <Checkbox
                     checked={allergyValue === 'ไม่แพ้'}
                     onChange={() => handleAllergyChange('ไม่แพ้')}
                     label='ไม่แพ้'
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -1118,6 +1106,7 @@ export default function PatientHistoryForm() {
                     <Input
                       {...register('allergy_drug')}
                       placeholder='ระบุยาที่แพ้'
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className='flex items-center space-x-2'>
@@ -1125,6 +1114,7 @@ export default function PatientHistoryForm() {
                     <Input
                       {...register('allergy_food')}
                       placeholder='ระบุอาหารที่แพ้'
+                      disabled={isSubmitting}
                     />
                   </div>
                 </>
@@ -1132,17 +1122,17 @@ export default function PatientHistoryForm() {
 
               <div className='flex items-center space-x-2'>
                 <label className='font-medium text-black w-24'>ยาที่ใช้อยู่</label>
-                <Input {...register('medications')} placeholder='ระบุยา' />
+                <Input {...register('medications')} placeholder='ระบุยา' disabled={isSubmitting} />
               </div>
 
               <div className='flex items-center space-x-2'>
                 <label className='font-medium text-black w-24'>โรคประจำตัว</label>
-                <Input {...register('chronicDiseases')} placeholder='ระบุโรคประจำตัว' />
+                <Input {...register('chronicDiseases')} placeholder='ระบุโรคประจำตัว' disabled={isSubmitting} />
               </div>
 
               <div className='flex items-center space-x-2'>
                 <label className='font-medium text-black w-24'>ประวัติการผ่าตัด</label>
-                <Input {...register('surgeryHistory')} placeholder='ระบุประวัติผ่าตัด' />
+                <Input {...register('surgeryHistory')} placeholder='ระบุประวัติผ่าตัด' disabled={isSubmitting} />
               </div>
 
               <div className='flex items-center space-x-2'>
@@ -1151,18 +1141,20 @@ export default function PatientHistoryForm() {
                   type='text'
                   {...register('admissionDate')}
                   readOnly
+                  disabled
                   className='bg-gray-200 cursor-not-allowed w-32'
                 />
               </div>
 
-              <div className='mt-4'>
-                <Button type='submit' className='bg-blue-600 hover:bg-blue-700'>
-                  {isEditMode ? 'อัปเดตข้อมูล' : 'บันทึกข้อมูล'}
+              <div className='flex space-x-2'>
+                <Button type='submit' className='bg-blue-600 hover:bg-blue-700' disabled={isSubmitting}>
+                  {isSubmitting ? 'กำลังบันทึก...' : isEditMode ? 'อัพเดทข้อมูล' : 'บันทึกข้อมูล'}
                 </Button>
                 <Button
                   type='button'
-                  className='ml-2 bg-purple-600 hover:bg-purple-700'
+                  className='bg-purple-600 hover:bg-purple-700'
                   onClick={openSignLanguagePopup}
+                  disabled={isSubmitting}
                 >
                   ภาษามือ
                 </Button>
@@ -1172,7 +1164,7 @@ export default function PatientHistoryForm() {
         </div>
 
         {/* ส่วนกล้องด้านขวา */}
-        <div className='w-9/15 bg-white/50 backdrop-blur-sm rounded-lg shadow-lg p-4 max-h-[85vh] overflow-y-auto'>
+        <div className='w-2/5 bg-white/50 backdrop-blur-sm rounded-lg shadow-lg p-6 max-h-[85vh] overflow-y-auto'>
           <div className='space-y-4'>
             {/* การแจ้งเตือนข้อผิดพลาด */}
             {errorMessage && (
@@ -1184,6 +1176,7 @@ export default function PatientHistoryForm() {
                     setIsCameraOn(false);
                     setTimeout(() => setIsCameraOn(true), 100);
                   }}
+                  disabled={isSubmitting}
                 >
                   ลองใหม่
                 </button>
@@ -1199,6 +1192,7 @@ export default function PatientHistoryForm() {
                   value={model}
                   onChange={(e) => setModel(e.target.value as 'SL' | 'TH')}
                   className='w-32'
+                  disabled={isSubmitting}
                 >
                   <option value='SL'>ภาษามือ</option>
                   <option value='TH'>ซักประวัติ</option>
@@ -1243,6 +1237,7 @@ export default function PatientHistoryForm() {
                   <tbody>
                     {Object.entries(allLabels)
                       .sort(([, confidenceA], [, confidenceB]) => confidenceB - confidenceA)
+                      .slice(0, 3)
                       .map(([label, confidence], index) => (
                         <tr
                           key={label}
